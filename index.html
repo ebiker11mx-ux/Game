@@ -2,79 +2,89 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no" />
 <title>3D Obstacle Course - Mobile Friendly</title>
 <style>
-  html, body { margin:0; height:100%; background:#0d1117; overflow:hidden; font-family:system-ui, Arial; }
-  #game { position:fixed; inset:0; }
+  html, body, #game {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #0d1117;
+    font-family: system-ui, Arial, sans-serif;
+  }
 
-  .hud { position:fixed; inset:0; pointer-events:none; }
-  .status { position:absolute; top:8px; left:8px; color:#eaf1ff; font-size:13px; background:rgba(0,0,0,0.35); padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); }
-  .status strong { color:#fff; }
+  .hud { position: fixed; inset: 0; pointer-events: none; }
+
+  .status {
+    position: absolute; top: 8px; left: 8px;
+    color: #eaf1ff; font-size: 13px;
+    background: rgba(0,0,0,0.35); padding: 6px 10px;
+    border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);
+  }
+  .status strong { color: #fff; }
 
   /* Arrow controls */
   .arrows {
-    position:absolute;
-    bottom:12px;
-    left:12px;
-    display:grid;
-    grid-template-columns:64px 64px 64px;
-    grid-template-rows:64px 64px;
-    gap:6px;
-    pointer-events:auto;
+    position: absolute; bottom: 12px; left: 12px;
+    display: grid;
+    grid-template-columns: 72px 72px 72px;
+    grid-template-rows: 72px 72px;
+    gap: 8px; pointer-events: auto;
   }
   .arrow {
-    font-size:22px;
-    border-radius:14px;
-    box-shadow:0 6px 20px rgba(22,99,217,0.35);
     background: linear-gradient(180deg,#3a8ffd,#1663d9);
-    color:#fff;
-    font-weight:700;
+    color: #fff; font-weight: 700; font-size: 22px;
+    border: none; border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(22,99,217,0.35);
   }
-  .arrow:active {
-    transform: translateY(2px);
-    box-shadow: 0 3px 10px rgba(22,99,217,0.35);
-  }
-  .arrow.blank { background:transparent; border:none; box-shadow:none; }
+  .arrow:active { transform: translateY(2px); box-shadow: 0 4px 16px rgba(22,99,217,0.35); }
+  .arrow.blank { background: transparent; border: none; box-shadow: none; }
 
   /* Jump buttons */
   .buttons {
-    position:absolute;
-    bottom:12px;
-    right:12px;
-    display:flex;
-    gap:12px;
-    pointer-events:auto;
+    position: absolute; bottom: 12px; right: 12px;
+    display: flex; gap: 10px; pointer-events: auto;
   }
   .btn {
-    min-width:64px;
-    min-height:64px;
-    border-radius:14px;
-    background:linear-gradient(180deg,#3a8ffd,#1663d9);
-    color:#fff;
-    font-weight:700;
-    border:none;
-    font-size:14px;
-    box-shadow:0 6px 20px rgba(22,99,217,0.35);
+    min-width: 72px; min-height: 72px;
+    border-radius: 12px;
+    background: linear-gradient(180deg,#3a8ffd,#1663d9);
+    color: #fff; font-weight: 700; border: none;
+    font-size: 14px; box-shadow: 0 8px 24px rgba(22,99,217,0.35);
   }
-  .btn.secondary { background:linear-gradient(180deg,#ff9b3a,#d95c16); box-shadow:0 6px 20px rgba(217,92,22,0.35); }
-  .btn:active { transform:translateY(2px); box-shadow:0 3px 10px rgba(0,0,0,0.35); }
+  .btn.secondary {
+    background: linear-gradient(180deg,#ff9b3a,#d95c16);
+    box-shadow: 0 8px 24px rgba(217,92,22,0.35);
+  }
+  .btn:active { transform: translateY(2px); box-shadow: 0 4px 16px rgba(217,92,22,0.35); }
 
   /* Finish banner */
-  .banner { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:auto; }
-  .card { background:rgba(13,17,23,0.92); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:16px 18px; color:#fff; min-width:280px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.5); }
-  .card h2 { margin:0 0 8px; font-size:20px; }
-  .card p { margin:6px 0; font-size:14px; color:#cfe1ff; }
-  .card .row { display:flex; gap:12px; justify-content:center; margin-top:10px; }
-  .card button { padding:10px 14px; border-radius:10px; border:none; font-weight:700; }
-  .card .primary { background:#3a8ffd; color:#fff; }
-  .card .ghost { background:transparent; color:#9fb7ff; border:1px solid rgba(255,255,255,0.18); }
+  .banner {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: auto;
+  }
+  .card {
+    background: rgba(13,17,23,0.92);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px; padding: 16px 18px; color: #fff;
+    min-width: 280px; text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  }
+  .card h2 { margin: 0 0 8px; font-size: 20px; }
+  .card p { margin: 6px 0; font-size: 14px; color: #cfe1ff; }
+  .card .row { display: flex; gap: 12px; justify-content: center; margin-top: 10px; }
+  .card button { padding: 10px 14px; border-radius: 10px; border: none; font-weight: 700; }
+  .card .primary { background: #3a8ffd; color: #fff; }
+  .card .ghost { background: transparent; color: #9fb7ff; border: 1px solid rgba(255,255,255,0.18); }
 
-  @media (max-width:480px) {
-    .arrows { grid-template-columns:56px 56px 56px; grid-template-rows:56px 56px; gap:4px; }
-    .arrow { font-size:20px; }
-    .btn { min-width:56px; min-height:56px; font-size:13px; }
-    .status { font-size:12px; padding:5px 8px; }
+  @media (max-width: 480px) {
+    .arrows { grid-template-columns: 64px 64px 64px; grid-template-rows: 64px 64px; gap: 6px; }
+    .arrow { font-size: 20px; }
+    .btn { min-width: 64px; min-height: 64px; font-size: 13px; }
+    .status { font-size: 12px; padding: 5px 8px; }
   }
 </style>
 </head>
@@ -86,7 +96,6 @@
     <button class="arrow blank" disabled></button>
     <button id="upBtn" class="arrow" aria-label="Move up">⬆️</button>
     <button class="arrow blank" disabled></button>
-
     <button id="leftBtn" class="arrow" aria-label="Move left">⬅️</button>
     <button id="downBtn" class="arrow" aria-label="Move down">⬇️</button>
     <button id="rightBtn" class="arrow" aria-label="Move right">➡️</button>
@@ -119,8 +128,9 @@
 <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
 <script>
 (() => {
+  // Renderer
   const canvas = document.getElementById('game');
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
 
@@ -128,6 +138,7 @@
   scene.background = new THREE.Color(0x0d1117);
   scene.fog = new THREE.Fog(0x0a0f18, 60, 180);
 
+  // Camera
   const camera = new THREE.PerspectiveCamera(65, window.innerWidth/window.innerHeight, 0.1, 800);
   camera.position.set(0, 8, 12);
 
@@ -144,24 +155,13 @@
 
   // Player
   const playerRadius = 0.6;
-  const player = new THREE.Mesh(new THREE.SphereGeometry(playerRadius, 20, 16), new THREE.MeshStandardMaterial({color:0x86b9ff, emissive:0x001838, roughness:0.4, metalness:0.15}));
+  const player = new THREE.Mesh(new THREE.SphereGeometry(playerRadius,20,16), new THREE.MeshStandardMaterial({color:0x86b9ff, emissive:0x001838, roughness:0.4, metalness:0.15}));
   scene.add(player);
 
   // State
-  const state = {
-    pos: new THREE.Vector3(0,2,0),
-    vel: new THREE.Vector3(0,0,0),
-    acc: new THREE.Vector3(0,0,0),
-    onGround:false,
-    jumpCount:0,
-    lastCheckpoint:new THREE.Vector3(0,2,0),
-    checkpointIndex:0,
-    coins:0,
-    startTime: performance.now(),
-    finished:false
-  };
+  const state = { pos:new THREE.Vector3(0,2,0), vel:new THREE.Vector3(), acc:new THREE.Vector3(), onGround:false, jumpCount:0, lastCheckpoint:new THREE.Vector3(0,2,0), checkpointIndex:0, coins:0, startTime:performance.now(), finished:false };
 
-  // HUD refs
+  // HUD
   const checkpointIdxEl = document.getElementById('checkpointIdx');
   const checkpointTotalEl = document.getElementById('checkpointTotal');
   const coinCountEl = document.getElementById('coinCount');
@@ -177,165 +177,78 @@
   const platformGroup = new THREE.Group();
   scene.add(platformGroup);
 
-  const makePlatform = (w,h,d,x,y,z,opts={}) => {
-    const plat = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshStandardMaterial({color:opts.color||0x2a3758, emissive:opts.emissive||0x000000, roughness:0.7}));
+  function makePlatform(w,h,d,x,y,z,options={}) {
+    const plat = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshStandardMaterial({color: options.color||0x2a3758, emissive:options.emissive||0x000000, roughness:0.7}));
     plat.position.set(x,y,z);
-    plat.userData = { size:{w,h,d}, isMoving:!!opts.isMoving, moveAxis:opts.moveAxis||'x', moveAmp:opts.moveAmp||0, moveSpeed:opts.moveSpeed||0, basePos:new THREE.Vector3(x,y,z), index:platforms.length+1 };
+    plat.userData = { size:{w,h,d}, isMoving:!!options.isMoving, moveAxis: options.moveAxis||'x', moveAmp: options.moveAmp||0, moveSpeed: options.moveSpeed||0, basePos: new THREE.Vector3(x,y,z), index: platforms.length+1 };
     platformGroup.add(plat);
     platforms.push(plat);
     return plat;
-  };
+  }
 
+  // Generate course
   let zOffset = 0;
   const startCount=6, midCount=10, endCount=8;
-  const totalCount = startCount+midCount+endCount;
+  const totalCount = startCount + midCount + endCount;
   checkpointTotalEl.textContent = totalCount;
 
-  // Start section
-  for(let i=0;i<startCount;i++){
-    const w=6-i*0.2,d=6-i*0.2,gap=4+i*0.25;
-    zOffset -= gap;
-    makePlatform(w,0.8,d,(Math.random()-0.5)*2,0.6,zOffset);
-  }
+  // Start
+  for(let i=0;i<startCount;i++){const w=6-i*0.2;const d=6-i*0.2;zOffset-=(4+i*0.25);makePlatform(w,0.8,d,(Math.random()-0.5)*2,0.6,zOffset);}
+  // Mid
+  for(let i=0;i<midCount;i++){const w=4.6-i*0.2;const d=3.6-i*0.2;zOffset-=(5+i*0.45);const x=Math.sin(i*0.65)*3;makePlatform(w,0.7,d,x,1.1,zOffset);}
+  // End (moving)
+  for(let i=0;i<endCount;i++){const w=3.2,d=2.6,zOffsetGap=6+i*0.55;zOffset-=zOffsetGap;const axis=i%2===0?'x':'y';const amp=axis==='x'?2.2:0.8;const speed=0.8+i*0.06;makePlatform(w,0.6,d,0,1.5,zOffset,{isMoving:true, moveAxis:axis, moveAmp:amp, moveSpeed:speed, color:0x25406a, emissive:0x06122a});}
 
-  // Mid section
-  for(let i=0;i<midCount;i++){
-    const w=4.6-i*0.2,d=3.6-i*0.2,gap=5+i*0.45;
-    zOffset -= gap;
-    const x=Math.sin(i*0.65)*3;
-    makePlatform(w,0.7,d,x,1.1,zOffset);
-  }
-
-  // End section moving
-  for(let i=0;i<endCount;i++){
-    const w=3.2,d=2.6,gap=6+i*0.55;
-    zOffset -= gap;
-    const axis = i%2===0?'x':'y';
-    const amp = axis==='x'?2.2:0.8;
-    const speed=0.8+i*0.06;
-    makePlatform(w,0.6,d,0,1.5,zOffset,{isMoving:true, moveAxis:axis, moveAmp:amp, moveSpeed:speed, color:0x25406a, emissive:0x06122a});
-  }
-
-  // Spawn player
+  // Player spawn
   state.pos.copy(platforms[0].position).add(new THREE.Vector3(0,2,0));
   state.lastCheckpoint.copy(state.pos);
-  state.checkpointIndex = 1;
+  state.checkpointIndex=1;
   checkpointIdxEl.textContent = state.checkpointIndex;
 
   // Coins
-  const coins = [];
-  const coinGeo = new THREE.TorusGeometry(0.4,0.15,12,24);
-  const coinMat = new THREE.MeshStandardMaterial({color:0xffd700, emissive:0x332200, roughness:0.35});
-  for(let i=1;i<totalCount-1;i++){
-    const plat=platforms[i];
-    const c = new THREE.Mesh(coinGeo,coinMat);
-    const jitterX=(Math.random()-0.5)*Math.min(plat.userData.size.w-1,2.5);
-    const jitterZ=(Math.random()-0.5)*Math.min(plat.userData.size.d-1,2.5);
-    c.position.set(plat.position.x+jitterX, plat.position.y+1.4, plat.position.z+jitterZ);
-    c.rotation.x=Math.PI/2;
-    scene.add(c);
-    coins.push(c);
-  }
+  const coins=[];const coinGeo=new THREE.TorusGeometry(0.4,0.15,12,24);const coinMat=new THREE.MeshStandardMaterial({color:0xffd700, emissive:0x332200, roughness:0.35});
+  for(let i=1;i<totalCount-1;i++){const plat=platforms[i];const c=new THREE.Mesh(coinGeo,coinMat);c.position.set(plat.position.x+(Math.random()-0.5)*2.5,plat.position.y+1.4,plat.position.z+(Math.random()-0.5)*2.5);c.rotation.x=Math.PI/2;scene.add(c);coins.push(c);}
 
-  // Finish portal
+  // Portal
   const lastPlat = platforms[platforms.length-1];
   const portal = new THREE.Mesh(new THREE.RingGeometry(2,2.6,48), new THREE.MeshBasicMaterial({color:0x00ffcc, side:THREE.DoubleSide}));
-  portal.position.set(lastPlat.position.x, lastPlat.position.y+1.6, lastPlat.position.z-4);
-  portal.rotation.y=Math.PI/2;
-  scene.add(portal);
+  portal.position.set(lastPlat.position.x,lastPlat.position.y+1.6,lastPlat.position.z-4);portal.rotation.y=Math.PI/2;scene.add(portal);
 
   // Input
-  const input = {x:0,z:0};
-  function bindArrow(id,dx,dz){
-    const btn = document.getElementById(id);
-    const start = e=>{ input.x+=dx; input.z+=dz; e.preventDefault(); };
-    const end = ()=>{ input.x-=dx; input.z-=dz; };
-    btn.addEventListener('touchstart', start, {passive:false});
-    btn.addEventListener('touchend', end);
-    btn.addEventListener('touchcancel', end);
-    btn.addEventListener('mousedown', start);
-    btn.addEventListener('mouseup', end);
-    btn.addEventListener('mouseleave', end);
-  }
-  bindArrow('upBtn',0,-1);
-  bindArrow('downBtn',0,1);
-  bindArrow('leftBtn',-1,0);
-  bindArrow('rightBtn',1,0);
+  const input={x:0,z:0};
+  function bindArrow(id,dx,dz){const btn=document.getElementById(id);const press=e=>{input.x+=dx;input.z+=dz;e.preventDefault();};const release=()=>{input.x-=dx;input.z-=dz;};btn.addEventListener('touchstart',press,{passive:false});btn.addEventListener('touchend',release);btn.addEventListener('mousedown',press);btn.addEventListener('mouseup',release);btn.addEventListener('mouseleave',release);}
+  bindArrow('upBtn',0,-1);bindArrow('downBtn',0,1);bindArrow('leftBtn',-1,0);bindArrow('rightBtn',1,0);
 
-  const jumpBtn = document.getElementById('jumpBtn');
-  const doubleJumpBtn = document.getElementById('doubleJumpBtn');
-  const tryJump = (force=9.2)=>{
-    if(state.onGround && !state.finished){ state.vel.y=force; state.onGround=false; state.jumpCount=1; }
-  };
-  const tryDoubleJump = (force=9)=>{
-    if(!state.onGround && state.jumpCount===1 && !state.finished){ state.vel.y=force; state.jumpCount=2; }
-  };
-  let jumpLocked=false;
-  jumpBtn.addEventListener('touchstart', e=>{ if(!jumpLocked){ tryJump(); jumpLocked=true; e.preventDefault(); } }, {passive:false});
-  jumpBtn.addEventListener('touchend', e=>{ jumpLocked=false; e.preventDefault(); });
-  jumpBtn.addEventListener('click', tryJump);
-  doubleJumpBtn.addEventListener('touchstart', e=>{ tryDoubleJump(); e.preventDefault(); }, {passive:false});
-  doubleJumpBtn.addEventListener('click', tryDoubleJump);
-
-  // Prevent scroll
-  document.body.addEventListener('touchmove', e=>e.preventDefault(), {passive:false});
+  // Jump buttons
+  const jumpBtn=document.getElementById('jumpBtn');const doubleJumpBtn=document.getElementById('doubleJumpBtn');
+  const tryJump=(force=9.2)=>{if(state.onGround&&!state.finished){state.vel.y=force;state.onGround=false;state.jumpCount=1;}};
+  const tryDoubleJump=(force=9)=>{if(!state.onGround&&state.jumpCount===1&&!state.finished){state.vel.y=force;state.jumpCount=2;}};
+  jumpBtn.addEventListener('touchstart',e=>{tryJump();e.preventDefault();},{passive:false});jumpBtn.addEventListener('click',()=>tryJump());
+  doubleJumpBtn.addEventListener('touchstart',e=>{tryDoubleJump();e.preventDefault();},{passive:false});doubleJumpBtn.addEventListener('click',()=>tryDoubleJump());
 
   // Desktop keys
-  const keys = {};
-  window.addEventListener('keydown', e=>keys[e.code]=true);
-  window.addEventListener('keyup', e=>keys[e.code]=false);
-  function applyDesktopInput(){
-    const kx=(keys['KeyA']?-1:0)+(keys['KeyD']?1:0);
-    const kz=(keys['KeyW']?-1:0)+(keys['KeyS']?1:0);
-    input.x=kx;
-    input.z=kz;
-    if(keys['Space']){ tryJump(); keys['Space']=false; }
-    if(keys['ShiftLeft']||keys['ShiftRight']){ tryDoubleJump(); keys['ShiftLeft']=keys['ShiftRight']=false; }
-  }
+  const keys={};window.addEventListener('keydown',e=>keys[e.code]=true);window.addEventListener('keyup',e=>keys[e.code]=false);
+  function applyDesktopInput(){const kx=(keys['KeyA']?-1:0)+(keys['KeyD']?1:0);const kz=(keys['KeyW']?-1:0)+(keys['KeyS']?1:0);input.x=kx;input.z=kz;if(keys['Space']){tryJump();keys['Space']=false;}if(keys['ShiftLeft']||keys['ShiftRight']){tryDoubleJump();keys['ShiftLeft']=keys['ShiftRight']=false;}}
 
   // Physics
   const GRAVITY=-20, MOVE_ACCEL=26, AIR_ACCEL=12, MAX_SPEED=8.5, FRICTION=14;
 
-  function groundHeightAt(pos){
-    let hitHeight=-Infinity, hitPlat=null;
-    for(let plat of platforms){
-      const {w,h,d}=plat.userData.size;
-      const p=plat.position;
-      if(pos.x>=p.x-w/2-playerRadius && pos.x<=p.x+w/2+playerRadius &&
-         pos.z>=p.z-d/2-playerRadius && pos.z<=p.z+d/2+playerRadius){
-        const top = p.y + h/2;
-        if(top>hitHeight){ hitHeight=top; hitPlat=plat; }
-      }
-    }
-    return {height:hitHeight, plat:hitPlat};
-  }
+  function groundHeightAt(pos){let hitHeight=-Infinity,hitPlat=null;for(let plat of platforms){const {w,h,d}=plat.userData.size;const p=plat.position;if(pos.x>=p.x-w/2-playerRadius&&pos.x<=p.x+w/2+playerRadius&&pos.z>=p.z-d/2-playerRadius&&pos.z<=p.z+d/2+playerRadius){const top=p.y+h/2;if(top>hitHeight){hitHeight=top;hitPlat=plat;}}}return {height:hitHeight,plat:hitPlat};}
+  function updateMovingPlatforms(t){for(let plat of platforms){const ud=plat.userData;if(!ud.isMoving)continue;const phase=Math.sin(t*ud.moveSpeed);if(ud.moveAxis==='x')plat.position.x=ud.basePos.x+phase*ud.moveAmp;else if(ud.moveAxis==='y')plat.position.y=ud.basePos.y+phase*ud.moveAmp;}}
+  function updateHUD(now){if(!state.finished){const elapsed=(now-state.startTime)/1000;timerEl.textContent=`${elapsed.toFixed(1)}s`;}coinCountEl.textContent=state.coins;checkpointIdxEl.textContent=state.checkpointIndex;}
+  function showFinish(now){const elapsed=(now-state.startTime)/1000;finishBanner.style.display='flex';resultTimeEl.textContent=`Time: ${elapsed.toFixed(2)}s`;resultCoinsEl.textContent=`Coins: ${state.coins}`;}
 
-  function updateMovingPlatforms(t){
-    for(let plat of platforms){
-      const ud=plat.userData;
-      if(!ud.isMoving) continue;
-      const phase=Math.sin(t*ud.moveSpeed);
-      if(ud.moveAxis==='x') plat.position.x=ud.basePos.x+phase*ud.moveAmp;
-      else if(ud.moveAxis==='y') plat.position.y=ud.basePos.y+phase*ud.moveAmp;
-    }
-  }
+  restartBtn.addEventListener('click',()=>{state.finished=false;state.pos.copy(platforms[0].position).add(new THREE.Vector3(0,2,0));state.vel.set(0,0,0);state.onGround=false;state.jumpCount=0;state.lastCheckpoint.copy(state.pos);state.checkpointIndex=1;state.coins=0;for(let c of coins)c.visible=true;finishBanner.style.display='none';});
+  resumeBtn.addEventListener('click',()=>{state.finished=false;finishBanner.style.display='none';});
 
-  function updateHUD(now){
-    if(!state.finished){
-      const elapsed=(now-state.startTime)/1000;
-      timerEl.textContent=`${elapsed.toFixed(1)}s`;
-    }
-    coinCountEl.textContent=state.coins;
-    checkpointIdxEl.textContent=state.checkpointIndex;
-  }
+  // Loop
+  let lastTime=performance.now();
+  function loop(){
+    const now=performance.now();const dt=Math.min(0.033,(now-lastTime)/1000);lastTime=now;
+    applyDesktopInput();
+    updateMovingPlatforms(now*0.0016);
 
-  function showFinish(now){
-    const elapsed=(now-state.startTime)/1000;
-    finishBanner.style.display='flex';
-    resultTimeEl.textContent=`Time: ${elapsed.toFixed(2)}s`;
-    resultCoinsEl.textContent=`Coins: ${state.coins}`;
-  }
+    const accel=state.onGround?MOVE_ACCEL:AIR_ACCEL;
+    state.acc.set(input.x*accel,0,input.z*accel);
 
-  restartBtn.addEventListener('click', ()=>{
-    state.finished=false;
-    state.pos.copy(platforms[0].position).add(new THREE
+    if(state.onGround){const speedXZ=Math.hypot(state.vel.x
