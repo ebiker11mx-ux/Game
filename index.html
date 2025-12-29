@@ -2,162 +2,184 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>3D Progressive Obby</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D Obstacle Course</title>
 <style>
-body { margin:0; overflow:hidden; background:black; font-family:sans-serif; }
-canvas { display:block; }
-
-.ui { position:fixed; bottom:20px; width:100%; display:flex; justify-content:space-between; padding:0 20px; pointer-events:none; }
-.joystick { width:120px; height:120px; background:rgba(255,255,255,0.25); border-radius:50%; position:relative; pointer-events:auto; }
-.stick { width:50px; height:50px; background:rgba(255,255,255,0.9); border-radius:50%; position:absolute; top:35px; left:35px; }
-.buttons { display:flex; flex-direction:column; gap:15px; pointer-events:auto; }
-button { width:70px; height:70px; border-radius:50%; border:none; font-size:18px; background:rgba(255,255,255,0.85); }
-
-.message { position:fixed; top:20px; width:100%; text-align:center; font-size:28px; color:yellow; text-shadow:0 0 8px black; pointer-events:none; }
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+    #controls {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 10px;
+    }
+    button {
+        padding: 20px;
+        font-size: 18px;
+        border-radius: 50%;
+        background-color: rgba(0,0,0,0.5);
+        color: white;
+        border: none;
+    }
 </style>
 </head>
 <body>
-
-<div class="ui">
-  <div class="joystick" id="joystick"><div class="stick" id="stick"></div></div>
-  <div class="buttons">
-    <button id="highjump">⬆⬆</button>
-    <button id="jump">⤒</button>
-  </div>
+<div id="controls">
+    <button id="jumpBtn">Jump</button>
+    <button id="doubleJumpBtn">Double Jump</button>
 </div>
-
-<div class="message" id="message"></div>
-
-<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.155.0/examples/js/controls/PointerLockControls.js"></script>
 <script>
-// ---------------- SCENE ----------------
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87ceeb);
-const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer({ antialias:true });
-renderer.setSize(innerWidth, innerHeight);
-document.body.appendChild(renderer.domElement);
-scene.add(new THREE.DirectionalLight(0xffffff,1).position.set(5,10,5));
-scene.add(new THREE.AmbientLight(0xffffff,0.4));
+    let scene, camera, renderer, player, controls;
+    let obstacles = [], checkpoints = [];
+    let speed = 0.1;
+    let jumpVelocity = 0;
+    let canDoubleJump = true;
+    let gravity = 0.01;
+    let lastCheckpoint = new THREE.Vector3(0, 1, 0);
 
-// ---------------- PLAYER ----------------
-const player = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshStandardMaterial({ color:0xff4444 }));
-player.position.set(0,2,0);
-scene.add(player);
+    init();
+    animate();
 
-// ---------------- VARIABLES ----------------
-let platforms=[], checkpointPos=new THREE.Vector3(0,2,0);
-const message=document.getElementById("message");
-let velocityY=0, onGround=false, speed=0.12, gravity=0.02;
-let difficulty=0.05;  // increases over distance
+    function init() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87ceeb);
 
-// ---------------- JOYSTICK ----------------
-const joystick=document.getElementById("joystick");
-const stick=document.getElementById("stick");
-let joyX=0, joyY=0;
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 1, 5);
 
-joystick.addEventListener("touchmove", e=>{
-  const rect=joystick.getBoundingClientRect();
-  const touch=e.touches[0];
-  let x=touch.clientX-rect.left-60;
-  let y=touch.clientY-rect.top-60;
-  const dist=Math.min(40, Math.hypot(x,y));
-  const angle=Math.atan2(y,x);
-  joyX=Math.cos(angle)*(dist/40);
-  joyY=Math.sin(angle)*(dist/40);
-  stick.style.left=35+joyX*40+"px";
-  stick.style.top=35+joyY*40+"px";
-});
-joystick.addEventListener("touchend", ()=>{ joyX=joyY=0; stick.style.left="35px"; stick.style.top="35px"; });
+        renderer = new THREE.WebGLRenderer({antialias:true});
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
 
-// ---------------- BUTTONS ----------------
-document.getElementById("jump").ontouchstart=()=>{ if(onGround){ velocityY=0.35; onGround=false; } };
-document.getElementById("highjump").ontouchstart=()=>{ if(onGround){ velocityY=0.65; onGround=false; } };
+        // Lighting
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(5,10,7);
+        scene.add(light);
 
-// ---------------- PLATFORM GENERATOR ----------------
-function createPlatform(x=0,y=0,z=0,move=false){
-  const p = new THREE.Mesh(
-    new THREE.BoxGeometry(move?3:5,1,5),
-    new THREE.MeshStandardMaterial({color: move?0xffaa00:0x22ff22})
-  );
-  p.position.set(x,y,z);
-  scene.add(p);
-  platforms.push({mesh:p, move:move, startX:x, dir:1});
-}
+        // Player
+        player = new THREE.Mesh(
+            new THREE.BoxGeometry(1,1,1),
+            new THREE.MeshStandardMaterial({color:0xff0000})
+        );
+        player.position.set(0,1,0);
+        scene.add(player);
 
-// Initialize first 10 platforms
-for(let i=0;i<10;i++){
-  const x = Math.floor(Math.random()*5-2);
-  const y = i*0.5;
-  const z = -i*8;
-  const move = Math.random() < 0.3;
-  createPlatform(x,y,z,move);
-}
+        // Ground
+        addObstacle(0, 0, -5, 10, 1, 10); // start platform
 
-// ---------------- GAME LOOP ----------------
-function animate(){
-  requestAnimationFrame(animate);
+        // Create obstacle course
+        for(let i=0; i<20; i++){
+            let size = 2 + Math.random()*2;
+            let x = (Math.random()-0.5) * 6;
+            let y = 0;
+            let z = -10 - i*5;
+            addObstacle(x,y,z,size,1,size);
 
-  // Movement
-  player.position.x += joyX*speed;
-  player.position.z += joyY*speed;
+            // Add checkpoint every 3 blocks
+            if(i % 3 === 0){
+                let cp = new THREE.Mesh(
+                    new THREE.BoxGeometry(1,1,1),
+                    new THREE.MeshStandardMaterial({color:0x00ff00})
+                );
+                cp.position.set(x,2,z);
+                scene.add(cp);
+                checkpoints.push(cp);
+            }
+        }
 
-  // Gravity
-  velocityY -= gravity; player.position.y += velocityY;
+        window.addEventListener('resize', onWindowResize, false);
 
-  // Moving platforms
-  platforms.forEach(p=>{
-    if(p.move){ 
-      p.mesh.position.x += difficulty*p.dir; 
-      if(Math.abs(p.mesh.position.x-p.startX)>3) p.dir*=-1; 
+        // Controls
+        document.getElementById('jumpBtn').addEventListener('click', () => jump(false));
+        document.getElementById('doubleJumpBtn').addEventListener('click', () => jump(true));
     }
-  });
 
-  // Collision & checkpoint
-  onGround=false;
-  platforms.forEach((p)=>{
-    const dx=Math.abs(player.position.x-p.mesh.position.x);
-    const dz=Math.abs(player.position.z-p.mesh.position.z);
-    const dy=player.position.y-p.mesh.position.y;
-    if(dx<2.5 && dz<2.5 && dy<=1 && dy>0){
-      velocityY=0; player.position.y=p.mesh.position.y+1; onGround=true;
-      checkpointPos.copy(new THREE.Vector3(p.mesh.position.x,p.mesh.position.y+1,p.mesh.position.z));
+    function addObstacle(x,y,z,w,h,d){
+        let geometry = new THREE.BoxGeometry(w,h,d);
+        let material = new THREE.MeshStandardMaterial({color:0x808080});
+        let cube = new THREE.Mesh(geometry, material);
+        cube.position.set(x, y, z);
+        scene.add(cube);
+        obstacles.push(cube);
     }
-  });
 
-  // Respawn if fall
-  if(player.position.y<-20){ player.position.copy(checkpointPos); velocityY=0; }
+    function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
 
-  // Generate new platforms ahead
-  const lastPlatform = platforms[platforms.length-1].mesh;
-  if(player.position.z - lastPlatform.position.z < 40){
-    const x = Math.floor(Math.random()*5-2);
-    const y = lastPlatform.position.y + Math.random()*0.5;
-    const z = lastPlatform.position.z - 8;
-    const move = Math.random() < (0.3 + difficulty*2); // more moving platforms as difficulty rises
-    createPlatform(x,y,z,move);
+    function jump(doubleJump){
+        if(doubleJump && canDoubleJump){
+            jumpVelocity = 0.2;
+            canDoubleJump = false;
+        } else if(!doubleJump && player.position.y <= 1.01){
+            jumpVelocity = 0.2;
+        }
+    }
 
-    // Gradually increase difficulty
-    difficulty += 0.0005;
-  }
+    function checkCollision(){
+        let onGround = false;
+        for(let obs of obstacles){
+            if(
+                player.position.x + 0.5 > obs.position.x - obs.scale.x/2 &&
+                player.position.x - 0.5 < obs.position.x + obs.scale.x/2 &&
+                player.position.y - 0.5 <= obs.position.y + obs.scale.y/2 &&
+                player.position.y - 0.5 > obs.position.y &&
+                player.position.z + 0.5 > obs.position.z - obs.scale.z/2 &&
+                player.position.z - 0.5 < obs.position.z + obs.scale.z/2
+            ){
+                player.position.y = obs.position.y + 1;
+                jumpVelocity = 0;
+                canDoubleJump = true;
+                onGround = true;
+            }
+        }
+        return onGround;
+    }
 
-  // Remove platforms behind player
-  if(platforms[0].mesh.position.z - player.position.z > 20){
-    scene.remove(platforms[0].mesh);
-    platforms.shift();
-  }
+    function checkCheckpoint(){
+        for(let cp of checkpoints){
+            if(player.position.distanceTo(cp.position) < 1){
+                lastCheckpoint.copy(cp.position);
+                lastCheckpoint.y = 1;
+            }
+        }
+    }
 
-  // Camera follow
-  camera.position.set(player.position.x, player.position.y+6, player.position.z+12);
-  camera.lookAt(player.position);
+    function animate() {
+        requestAnimationFrame(animate);
 
-  renderer.render(scene,camera);
-}
-animate();
+        // Move forward automatically
+        player.position.z -= speed;
 
-// ---------------- RESIZE ----------------
-addEventListener("resize",()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
+        // Gravity
+        jumpVelocity -= gravity;
+        player.position.y += jumpVelocity;
+
+        // Collision
+        let onGround = checkCollision();
+        if(onGround && jumpVelocity < 0) jumpVelocity = 0;
+
+        // Checkpoint
+        checkCheckpoint();
+
+        // Respawn if fall
+        if(player.position.y < -5){
+            player.position.copy(lastCheckpoint);
+            jumpVelocity = 0;
+        }
+
+        // Camera follows player
+        camera.position.lerp(new THREE.Vector3(player.position.x, player.position.y + 3, player.position.z + 5),0.1);
+        camera.lookAt(player.position);
+
+        renderer.render(scene, camera);
+    }
 </script>
 </body>
 </html>
