@@ -3,472 +3,134 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>Mobile 3D Obstacle Course</title>
+<title>3D Obstacle Course - Arrows</title>
 <style>
   html, body { margin:0; height:100%; background:#0d1117; overflow:hidden; font-family:system-ui,Arial; }
   #game { position:fixed; inset:0; }
   .hud { position:fixed; inset:0; pointer-events:none; }
-  .controls { position:absolute; bottom:12px; left:12px; width:140px; height:140px; pointer-events:auto; }
-  .joystick { position:relative; width:100%; height:100%; border-radius:50%; background:rgba(255,255,255,0.06); border:2px solid rgba(255,255,255,0.08); }
-  .stick { position:absolute; left:50%; top:50%; width:60px; height:60px; transform:translate(-50%,-50%); border-radius:50%; background:rgba(255,255,255,0.25); border:2px solid rgba(255,255,255,0.35); }
+  /* Arrow controls */
+  .arrows { position:absolute; bottom:12px; left:12px; display:grid; grid-template-columns:60px 60px 60px; grid-template-rows:60px 60px; gap:6px; pointer-events:auto; }
+  .arrow { background:#3a8ffd; color:#fff; font-weight:bold; font-size:20px; border:none; border-radius:8px; }
+  .arrow:active { background:#1663d9; }
   .buttons { position:absolute; bottom:12px; right:12px; display:flex; gap:10px; pointer-events:auto; }
-  .btn { min-width:72px; min-height:72px; border-radius:12px; background:linear-gradient(180deg,#3a8ffd,#1663d9); color:#fff; font-weight:700; border:none; font-size:14px; box-shadow:0 8px 24px rgba(22,99,217,0.35); }
-  .btn.secondary { background:linear-gradient(180deg,#ff9b3a,#d95c16); box-shadow:0 8px 24px rgba(217,92,22,0.35); }
+  .btn { min-width:72px; min-height:72px; border-radius:12px; background:#3a8ffd; color:#fff; font-weight:700; border:none; font-size:14px; }
+  .btn.secondary { background:#ff9b3a; }
   .status { position:absolute; top:8px; left:8px; color:#eaf1ff; font-size:13px; background:rgba(0,0,0,0.35); padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); }
-  .status strong { color:#fff; }
-  .banner { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:auto; }
-  .card { background:rgba(13,17,23,0.9); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:16px 18px; color:#fff; min-width:280px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.5); }
-  .card h2 { margin:0 0 8px; font-size:20px; }
-  .card p { margin:6px 0; font-size:14px; color:#cfe1ff; }
-  .card .row { display:flex; gap:12px; justify-content:center; margin-top:10px; }
-  .card button { padding:10px 14px; border-radius:10px; border:none; font-weight:700; }
-  .card .primary { background:#3a8ffd; color:#fff; }
-  .card .ghost { background:transparent; color:#9fb7ff; border:1px solid rgba(255,255,255,0.18); }
-  @media (max-width:480px) {
-    .controls { width:120px; height:120px; }
-    .stick { width:52px; height:52px; }
-    .btn { min-width:64px; min-height:64px; font-size:13px; }
-    .status { font-size:12px; padding:5px 8px; }
-  }
 </style>
 </head>
 <body>
 <canvas id="game"></canvas>
 
 <div class="hud">
-  <div class="controls">
-    <div id="joystick" class="joystick"><div id="stick" class="stick"></div></div>
+  <!-- Arrow controls -->
+  <div class="arrows">
+    <div></div><button id="upBtn" class="arrow">⬆️</button><div></div>
+    <button id="leftBtn" class="arrow">⬅️</button><button id="downBtn" class="arrow">⬇️</button><button id="rightBtn" class="arrow">➡️</button>
   </div>
+  <!-- Jump buttons -->
   <div class="buttons">
     <button id="jumpBtn" class="btn">Jump</button>
     <button id="doubleJumpBtn" class="btn secondary">Double</button>
   </div>
+  <!-- HUD -->
   <div class="status">
-    <div><strong>Checkpoint:</strong> <span id="checkpointIdx">0</span> / <span id="checkpointTotal">0</span></div>
-    <div><strong>Coins:</strong> <span id="coinCount">0</span></div>
-    <div><strong>Time:</strong> <span id="timer">0.0s</span></div>
-  </div>
-
-  <!-- Finish banner -->
-  <div id="finishBanner" class="banner" style="display:none;">
-    <div class="card">
-      <h2>Level complete!</h2>
-      <p id="resultTime">Time: 0.0s</p>
-      <p id="resultCoins">Coins: 0</p>
-      <div class="row">
-        <button id="restartBtn" class="primary">Restart</button>
-        <button id="resumeBtn" class="ghost">Free roam</button>
-      </div>
-    </div>
+    <div>Checkpoint: <span id="checkpointIdx">0</span></div>
+    <div>Coins: <span id="coinCount">0</span></div>
+    <div>Time: <span id="timer">0.0s</span></div>
   </div>
 </div>
 
 <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
 <script>
 (() => {
-  // Renderer & scene
-  const canvas = document.getElementById('game');
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setSize(window.innerWidth, window.innerHeight);
-
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0d1117);
-  scene.fog = new THREE.Fog(0x0a0f18, 60, 180);
-
-  const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 800);
-  camera.position.set(0, 8, 12);
+  const canvas=document.getElementById('game');
+  const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+  renderer.setSize(window.innerWidth,window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  const scene=new THREE.Scene();
+  scene.background=new THREE.Color(0x0d1117);
+  const camera=new THREE.PerspectiveCamera(65,window.innerWidth/window.innerHeight,0.1,500);
+  camera.position.set(0,8,12);
 
   // Lights
-  const hemi = new THREE.HemisphereLight(0xffffff, 0x223355, 0.7);
-  scene.add(hemi);
-  const dir = new THREE.DirectionalLight(0xffffff, 0.8);
-  dir.position.set(12, 18, 10);
-  scene.add(dir);
-
-  // Ground (visual reference under platforms)
-  const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(2000, 2000),
-    new THREE.MeshStandardMaterial({ color: 0x0b0f18, roughness: 1 })
-  );
-  ground.rotation.x = -Math.PI / 2;
-  scene.add(ground);
+  scene.add(new THREE.HemisphereLight(0xffffff,0x223355,0.6));
+  const dir=new THREE.DirectionalLight(0xffffff,0.8); dir.position.set(10,20,10); scene.add(dir);
 
   // Player
-  const playerRadius = 0.6;
-  const player = new THREE.Mesh(
-    new THREE.SphereGeometry(playerRadius, 20, 16),
-    new THREE.MeshStandardMaterial({ color: 0x86b9ff, emissive: 0x001838, roughness: 0.4, metalness: 0.15 })
-  );
+  const player=new THREE.Mesh(new THREE.SphereGeometry(0.6,16,12),new THREE.MeshStandardMaterial({color:0x86b9ff}));
   scene.add(player);
 
-  // Game state
-  const state = {
-    pos: new THREE.Vector3(0, 2, 0),
-    vel: new THREE.Vector3(0, 0, 0),
-    acc: new THREE.Vector3(0, 0, 0),
-    onGround: false,
-    jumpCount: 0,
-    lastCheckpoint: new THREE.Vector3(0, 2, 0),
-    checkpointIndex: 0,
-    startTime: performance.now(),
-    finished: false,
-    coins: 0
-  };
+  const state={pos:new THREE.Vector3(0,2,0),vel:new THREE.Vector3(),onGround:false,jumpCount:0,lastCheckpoint:new THREE.Vector3(0,2,0),checkpointIndex:0,coins:0,startTime:performance.now()};
 
-  // HUD refs
-  const checkpointIdxEl = document.getElementById('checkpointIdx');
-  const checkpointTotalEl = document.getElementById('checkpointTotal');
-  const coinCountEl = document.getElementById('coinCount');
-  const timerEl = document.getElementById('timer');
-  const finishBanner = document.getElementById('finishBanner');
-  const resultTimeEl = document.getElementById('resultTime');
-  const resultCoinsEl = document.getElementById('resultCoins');
-  const restartBtn = document.getElementById('restartBtn');
-  const resumeBtn = document.getElementById('resumeBtn');
-
-  // Course generation
-  const platforms = [];
-  const platformGroup = new THREE.Group();
-  scene.add(platformGroup);
-
-  const makePlatform = (w, h, d, x, y, z, options = {}) => {
-    const plat = new THREE.Mesh(
-      new THREE.BoxGeometry(w, h, d),
-      new THREE.MeshStandardMaterial({ color: options.color || 0x2a3758, emissive: options.emissive || 0x000000, roughness: 0.7 })
-    );
-    plat.position.set(x, y, z);
-    plat.userData = {
-      size: { w, h, d },
-      isMoving: !!options.isMoving,
-      moveAxis: options.moveAxis || 'x',
-      moveAmp: options.moveAmp || 0,
-      moveSpeed: options.moveSpeed || 0,
-      basePos: new THREE.Vector3(x, y, z),
-      index: platforms.length + 1
-    };
-    platformGroup.add(plat);
-    platforms.push(plat);
-    return plat;
-  };
-
-  let zOffset = 0;
-  const startCount = 6, midCount = 10, endCount = 8;
-  const totalCount = startCount + midCount + endCount;
-  checkpointTotalEl.textContent = totalCount;
-
-  // Start section: wide and close
-  for (let i = 0; i < startCount; i++) {
-    const w = 6 - i * 0.2;
-    const d = 6 - i * 0.2;
-    const gap = 4 + i * 0.25;
-    zOffset -= gap;
-    makePlatform(w, 0.8, d, (Math.random() - 0.5) * 2, 0.6, zOffset);
+  // Platforms
+  const platforms=[],group=new THREE.Group(); scene.add(group);
+  let zOffset=0;
+  for(let i=0;i<12;i++){ zOffset-=5;
+    const plat=new THREE.Mesh(new THREE.BoxGeometry(5-i*0.2,0.8,5-i*0.2),new THREE.MeshStandardMaterial({color:0x2a3758}));
+    plat.position.set((Math.random()-0.5)*4,0.5,zOffset);
+    plat.userData.index=i+1;
+    group.add(plat); platforms.push(plat);
   }
-  // Mid section: smaller, lateral offsets
-  for (let i = 0; i < midCount; i++) {
-    const w = 4.6 - i * 0.2;
-    const d = 3.6 - i * 0.2;
-    const gap = 5 + i * 0.45;
-    zOffset -= gap;
-    const x = Math.sin(i * 0.65) * 3;
-    makePlatform(w, 0.7, d, x, 1.1, zOffset);
-  }
-  // End section: moving platforms
-  for (let i = 0; i < endCount; i++) {
-    const w = 3.2;
-    const d = 2.6;
-    const gap = 6 + i * 0.55;
-    zOffset -= gap;
-    const axis = i % 2 === 0 ? 'x' : 'y';
-    const amp = axis === 'x' ? 2.2 : 0.8;
-    const speed = 0.8 + i * 0.06;
-    makePlatform(w, 0.6, d, 0, 1.5, zOffset, { isMoving: true, moveAxis: axis, moveAmp: amp, moveSpeed: speed, emissive: 0x06122a, color: 0x25406a });
-  }
-
-  // Spawn on first platform
-  state.pos.copy(platforms[0].position).add(new THREE.Vector3(0, 2, 0));
-  state.lastCheckpoint.copy(state.pos);
-  checkpointIdxEl.textContent = 1;
 
   // Coins
-  const coins = [];
-  const coinGeo = new THREE.TorusGeometry(0.4, 0.15, 12, 24);
-  const coinMat = new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0x332200, roughness: 0.4 });
-  const coinPositions = [];
-  for (let i = 1; i < totalCount - 1; i++) {
-    const plat = platforms[i];
-    const c = new THREE.Mesh(coinGeo, coinMat);
-    const jitterX = (Math.random() - 0.5) * Math.min(plat.userData.size.w - 1, 2.5);
-    const jitterZ = (Math.random() - 0.5) * Math.min(plat.userData.size.d - 1, 2.5);
-    c.position.set(plat.position.x + jitterX, plat.position.y + 1.4, plat.position.z + jitterZ);
-    c.rotation.x = Math.PI / 2;
-    scene.add(c);
-    coins.push(c);
-    coinPositions.push(c.position.clone());
-  }
+  const coinGeo=new THREE.TorusGeometry(0.4,0.15,12,24);
+  const coinMat=new THREE.MeshStandardMaterial({color:0xffd700});
+  const coins=[];
+  for(let i=0;i<8;i++){ const c=new THREE.Mesh(coinGeo,coinMat);
+    c.position.set((Math.random()-0.5)*4,2,-i*8-10); scene.add(c); coins.push(c); }
 
   // Finish portal
-  const lastPlat = platforms[platforms.length - 1];
-  const portal = new THREE.Mesh(
-    new THREE.RingGeometry(2, 2.6, 48),
-    new THREE.MeshBasicMaterial({ color: 0x00ffcc, side: THREE.DoubleSide })
-  );
-  portal.position.set(lastPlat.position.x, lastPlat.position.y + 1.6, lastPlat.position.z - 4);
-  portal.rotation.y = Math.PI / 2;
-  scene.add(portal);
+  const portal=new THREE.Mesh(new THREE.RingGeometry(2,2.5,32),new THREE.MeshBasicMaterial({color:0x00ffcc,side:THREE.DoubleSide}));
+  portal.rotation.y=Math.PI/2; portal.position.set(0,2,zOffset-10); scene.add(portal);
 
-  // Joystick
-  const joystick = document.getElementById('joystick');
-  const stick = document.getElementById('stick');
-  let joyActive = false, joyVector = new THREE.Vector2(0, 0), joyCenter = null;
-  const JOY_RADIUS = () => (joystick.clientWidth * 0.5 - stick.clientWidth * 0.5);
-  const setStick = (dx, dy) => { stick.style.transform = `translate(${dx - stick.clientWidth / 2}px, ${dy - stick.clientHeight / 2}px)`; };
-  const joyStart = (cx, cy) => {
-    const r = joystick.getBoundingClientRect();
-    joyCenter = new THREE.Vector2(r.left + r.width / 2, r.top + r.height / 2);
-    joyActive = true;
-    joyMove(cx, cy);
-  };
-  const joyMove = (cx, cy) => {
-    if (!joyActive) return;
-    const v = new THREE.Vector2(cx - joyCenter.x, cy - joyCenter.y);
-    const maxR = JOY_RADIUS();
-    const len = Math.min(v.length(), maxR);
-    v.setLength(len);
-    setStick(v.x + joystick.clientWidth / 2, v.y + joystick.clientHeight / 2);
-    joyVector.set(v.x / maxR, -v.y / maxR);
-  };
-  const joyEnd = () => {
-    joyActive = false;
-    joyVector.set(0, 0);
-    setStick(joystick.clientWidth / 2, joystick.clientHeight / 2);
-  };
-  joystick.addEventListener('touchstart', e => joyStart(e.touches[0].clientX, e.touches[0].clientY));
-  joystick.addEventListener('touchmove', e => joyMove(e.touches[0].clientX, e.touches[0].clientY));
-  joystick.addEventListener('touchend', joyEnd);
-  joystick.addEventListener('mousedown', e => joyStart(e.clientX, e.clientY));
-  window.addEventListener('mousemove', e => joyMove(e.clientX, e.clientY));
-  window.addEventListener('mouseup', joyEnd);
-
-  // Buttons
-  const jumpBtn = document.getElementById('jumpBtn');
-  const doubleJumpBtn = document.getElementById('doubleJumpBtn');
-  const tryJump = (force = 9.2) => {
-    if (state.onGround && !state.finished) {
-      state.vel.y = force;
-      state.onGround = false;
-      state.jumpCount = 1;
-    }
-  };
-  const tryDoubleJump = (force = 9.0) => {
-    if (!state.onGround && state.jumpCount === 1 && !state.finished) {
-      state.vel.y = force;
-      state.jumpCount = 2;
-    }
-  };
-  jumpBtn.addEventListener('touchstart', () => tryJump());
-  jumpBtn.addEventListener('click', () => tryJump());
-  doubleJumpBtn.addEventListener('touchstart', () => tryDoubleJump());
-  doubleJumpBtn.addEventListener('click', () => tryDoubleJump());
-
-  // Desktop controls
-  const keys = {};
-  window.addEventListener('keydown', e => { keys[e.code] = true; });
-  window.addEventListener('keyup', e => { keys[e.code] = false; });
-  function applyDesktopInput() {
-    const kx = (keys['KeyA'] ? -1 : 0) + (keys['KeyD'] ? 1 : 0);
-    const kz = (keys['KeyW'] ? 1 : 0) + (keys['KeyS'] ? -1 : 0);
-    if (kx !== 0 || kz !== 0) {
-      const v = new THREE.Vector2(kx, kz);
-      const len = Math.min(1, Math.hypot(kx, kz));
-      v.setLength(len);
-      joyVector.set(v.x, v.y);
-    }
-    if (keys['Space']) { tryJump(); keys['Space'] = false; }
-    if (keys['ShiftLeft'] || keys['ShiftRight']) { tryDoubleJump(); keys['ShiftLeft'] = keys['ShiftRight'] = false; }
+  // Arrow buttons
+  let input={x:0,z:0};
+  function bindArrow(id,dx,dz){
+    const btn=document.getElementById(id);
+    btn.addEventListener('touchstart',()=>{input.x+=dx; input.z+=dz;});
+    btn.addEventListener('touchend',()=>{input.x-=dx; input.z-=dz;});
+    btn.addEventListener('mousedown',()=>{input.x+=dx; input.z+=dz;});
+    btn.addEventListener('mouseup',()=>{input.x-=dx; input.z-=dz;});
   }
+  bindArrow('upBtn',0,-1);
+  bindArrow('downBtn',0,1);
+  bindArrow('leftBtn',-1,0);
+  bindArrow('rightBtn',1,0);
 
-  // Physics tuning
-  const GRAVITY = -20;
-  const MOVE_ACCEL = 26;
-  const AIR_ACCEL = 12;
-  const MAX_SPEED = 8.5;
-  const FRICTION = 14;
+  // Jump buttons
+  document.getElementById('jumpBtn').onclick=()=>{if(state.onGround){state.vel.y=9; state.onGround=false; state.jumpCount=1;}};
+  document.getElementById('doubleJumpBtn').onclick=()=>{if(!state.onGround&&state.jumpCount===1){state.vel.y=9; state.jumpCount=2;}};
 
-  // Helpers
-  function groundHeightAt(pos) {
-    let hitHeight = -Infinity;
-    let hitPlat = null;
-    for (let plat of platforms) {
-      const { w, h, d } = plat.userData.size;
-      const p = plat.position;
-      if (pos.x >= p.x - w/2 - playerRadius &&
-          pos.x <= p.x + w/2 + playerRadius &&
-          pos.z >= p.z - d/2 - playerRadius &&
-          pos.z <= p.z + d/2 + playerRadius) {
-        const top = p.y + h / 2;
-        if (top > hitHeight) { hitHeight = top; hitPlat = plat; }
+  // Physics constants
+  const GRAVITY=-20,MOVE_ACCEL=28,AIR_ACCEL=12,MAX_SPEED=8.5,FRICTION=14;
+
+  function loop(){
+    const dt=0.016;
+    // Movement
+    const accel=state.onGround?MOVE_ACCEL:AIR_ACCEL;
+    state.vel.x+=input.x*accel*dt;
+    state.vel.z+=input.z*accel*dt;
+    state.vel.y+=GRAVITY*dt;
+    state.pos.addScaledVector(state.vel,dt);
+
+    // Collision with platforms
+    state.onGround=false;
+    for(const plat of platforms){
+      const p=plat.position,w=plat.geometry.parameters.width,d=plat.geometry.parameters.depth;
+      if(state.pos.x>p.x-w/2&&state.pos.x<p.x+w/2&&state.pos.z>p.z-d/2&&state.pos.z<p.z+d/2){
+        const top=p.y+0.4;
+        if(state.pos.y-0.6<=top&&state.vel.y<=0){state.pos.y=top+0.6; state.vel.y=0; state.onGround=true; state.lastCheckpoint.copy(p).add(new THREE.Vector3(0,2,0)); state.checkpointIndex=plat.userData.index; document.getElementById('checkpointIdx').textContent=state.checkpointIndex;}
       }
-    }
-    return { height: hitHeight, plat: hitPlat };
-  }
-
-  function updateMovingPlatforms(t) {
-    for (let plat of platforms) {
-      const ud = plat.userData;
-      if (!ud.isMoving) continue;
-      const phase = Math.sin(t * ud.moveSpeed);
-      if (ud.moveAxis === 'x') plat.position.x = ud.basePos.x + phase * ud.moveAmp;
-      else if (ud.moveAxis === 'y') plat.position.y = ud.basePos.y + phase * ud.moveAmp;
-    }
-  }
-
-  // HUD update
-  function updateHUD(now) {
-    if (!state.finished) {
-      const elapsed = (now - state.startTime) / 1000;
-      timerEl.textContent = `${elapsed.toFixed(1)}s`;
-    }
-    coinCountEl.textContent = state.coins;
-    checkpointIdxEl.textContent = state.checkpointIndex;
-  }
-
-  // Finish flow
-  function showFinish(now) {
-    const elapsed = (now - state.startTime) / 1000;
-    finishBanner.style.display = 'flex';
-    resultTimeEl.textContent = `Time: ${elapsed.toFixed(2)}s`;
-    resultCoinsEl.textContent = `Coins: ${state.coins}`;
-  }
-  restartBtn.addEventListener('click', () => {
-    // Reset state
-    state.finished = false;
-    state.pos.copy(platforms[0].position).add(new THREE.Vector3(0, 2, 0));
-    state.vel.set(0, 0, 0);
-    state.onGround = false;
-    state.jumpCount = 0;
-    state.lastCheckpoint.copy(state.pos);
-    state.checkpointIndex = 1;
-    state.coins = 0;
-    state.startTime = performance.now();
-    // Reset coins visibility
-    for (let c of coins) c.visible = true;
-    finishBanner.style.display = 'none';
-  });
-  resumeBtn.addEventListener('click', () => {
-    state.finished = false;
-    finishBanner.style.display = 'none';
-  });
-
-  // Loop
-  let lastTime = performance.now();
-  function loop() {
-    const now = performance.now();
-    const dt = Math.min(0.033, (now - lastTime) / 1000); // cap dt for stability
-    lastTime = now;
-
-    // Desktop input synthesis
-    applyDesktopInput();
-
-    // Moving platforms
-    updateMovingPlatforms(now * 0.0016);
-
-    // Acceleration from input
-    const accel = state.onGround ? MOVE_ACCEL : AIR_ACCEL;
-    state.acc.set(joyVector.x * accel, 0, joyVector.y * accel);
-
-    // Apply friction when grounded
-    if (state.onGround) {
-      const speedXZ = Math.hypot(state.vel.x, state.vel.z);
-      if (speedXZ > 0) {
-        const fr = Math.min(FRICTION * dt, 1);
-        state.vel.x *= (1 - fr);
-        state.vel.z *= (1 - fr);
-      }
-    }
-
-    // Accelerate, gravity
-    state.vel.x += state.acc.x * dt;
-    state.vel.z += state.acc.z * dt;
-    const speed = Math.hypot(state.vel.x, state.vel.z);
-    if (speed > MAX_SPEED) {
-      const k = MAX_SPEED / speed;
-      state.vel.x *= k; state.vel.z *= k;
-    }
-    state.vel.y += GRAVITY * dt;
-
-    // Integrate
-    state.pos.x += state.vel.x * dt;
-    state.pos.z += state.vel.z * dt;
-    state.pos.y += state.vel.y * dt;
-
-    // Ground collision
-    const { height: gHeight, plat: currentPlat } = groundHeightAt(state.pos);
-    const feet = state.pos.y - playerRadius;
-    if (gHeight !== -Infinity && feet <= gHeight + 0.02 && state.vel.y <= 0) {
-      state.pos.y = gHeight + playerRadius;
-      state.vel.y = 0;
-      if (!state.onGround) { state.onGround = true; state.jumpCount = 0; }
-      if (currentPlat) {
-        const idx = currentPlat.userData.index;
-        if (idx > state.checkpointIndex) {
-          state.checkpointIndex = idx;
-          state.lastCheckpoint.copy(currentPlat.position).add(new THREE.Vector3(0, 2, 0));
-        }
-      }
-    } else {
-      state.onGround = false;
-    }
-
-    // Fall -> respawn
-    if (state.pos.y < -20) {
-      state.pos.copy(state.lastCheckpoint);
-      state.vel.set(0, 0, 0);
-      state.onGround = false;
-      state.jumpCount = 0;
     }
 
     // Coin collection
-    for (let c of coins) {
-      if (c.visible && state.pos.distanceTo(c.position) < 1.2) {
-        c.visible = false;
-        state.coins += 1;
-      }
-    }
+    for(const c of coins){ if(c.visible&&state.pos.distanceTo(c.position)<1){c.visible=false; state.coins++; document.getElementById('coinCount').textContent=state.coins;} }
 
-    // Finish detection (touch portal ring)
-    const toPortal = state.pos.distanceTo(portal.position);
-    if (!state.finished && toPortal < 2.8) {
-      state.finished = true;
-      showFinish(now);
-    }
+    // Fall respawn
+    if(state.pos.y<-20){state.pos.copy(state.lastCheckpoint); state.vel.set(0,0,0);}
+
+    // Finish
+    if(state.pos.distanceTo(portal.position)<3){alert(`Finished! Coins: ${state.coins}`); state.pos.copy(platforms[0].position).add(new THREE.Vector3(0,2,0)); state.coins=0; for(const c of coins)c.visible=true;}
 
     // Camera follow
-    const camTarget = new THREE.Vector3(state.pos.x, state.pos.y + 2.6, state.pos.z + 7.2);
-    camera.position.lerp(camTarget, 0.12);
-    const lookTarget = new THREE.Vector3(state.pos.x, state.pos.y + 1.2, state.pos.z);
-    camera.lookAt(lookTarget);
-
-    // Apply to mesh
-    player.position.copy(state.pos);
-
-    // HUD
-    updateHUD(now);
-
-    // Render
-    renderer.render(scene, camera);
-    requestAnimationFrame(loop);
-  }
-  loop();
-
-  // Resize
-  window.addEventListener('resize', () => {
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-  });
-})();
-</script>
-</body>
-</html>
+    camera.position.lerp(new THREE.Vector3(state.pos.x
