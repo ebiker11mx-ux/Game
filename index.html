@@ -1,205 +1,452 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Glide Tower — Working Demo</title>
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-
-<style>
-html, body {
-  margin:0;
-  padding:0;
-  width:100%;
-  height:100%;
-  overflow:hidden;
-  background:#0b0e18;
-  font-family: system-ui, sans-serif;
-}
-#canvas {
-  width:100%;
-  height:100%;
-  display:block;
-  touch-action:none;
-}
-#controls {
-  position:fixed;
-  bottom:20px;
-  left:20px;
-  right:20px;
-  display:flex;
-  justify-content:space-between;
-  pointer-events:none;
-}
-.stick {
-  width:120px;
-  height:120px;
-  border-radius:50%;
-  border:1px solid rgba(255,255,255,.3);
-  position:relative;
-  pointer-events:auto;
-}
-.knob {
-  width:60px;
-  height:60px;
-  border-radius:50%;
-  background:#3a66ff;
-  position:absolute;
-  left:50%;
-  top:50%;
-  transform:translate(-50%,-50%);
-}
-.btn {
-  pointer-events:auto;
-  width:120px;
-  height:60px;
-  border-radius:16px;
-  background:#3a66ff;
-  color:white;
-  font-weight:bold;
-  border:none;
-}
-</style>
+  <meta charset="UTF-8" />
+  <title>Obby Game</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg: #101316;
+      --panel: #182028;
+      --text: #e8f0ff;
+      --accent: #6ae36a;
+      --danger: #ff5964;
+      --goal: #ffd166;
+      --outline: rgba(255,255,255,0.15);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: linear-gradient(180deg, #0c0f12, var(--bg));
+      color: var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, sans-serif;
+      display: grid;
+      place-items: center;
+      min-height: 100vh;
+    }
+    .wrap {
+      width: min(920px, 100vw);
+      padding: 16px;
+    }
+    .hud {
+      background: var(--panel);
+      border: 1px solid var(--outline);
+      border-radius: 12px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .hud .group { display: flex; gap: 12px; align-items: center; }
+    .tag {
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #12171c;
+      border: 1px solid var(--outline);
+      font-size: 12px;
+      letter-spacing: 0.2px;
+    }
+    .btn {
+      appearance: none;
+      cursor: pointer;
+      background: #1c2630;
+      color: var(--text);
+      border: 1px solid var(--outline);
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-weight: 600;
+      transition: transform 0.05s ease, background 0.15s ease, border-color 0.15s ease;
+    }
+    .btn:hover { background: #22303b; border-color: rgba(255,255,255,0.25); }
+    .btn:active { transform: translateY(1px); }
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 14px;
+      background:
+        linear-gradient(180deg, #15202b, #0f1620) padding-box,
+        linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0)) border-box;
+      border: 1px solid var(--outline);
+      box-shadow:
+        0 20px 40px rgba(0,0,0,0.45),
+        inset 0 2px 8px rgba(255,255,255,0.03);
+    }
+    .hint {
+      margin-top: 10px;
+      font-size: 12px;
+      opacity: 0.8;
+      text-align: center;
+    }
+  </style>
 </head>
-
 <body>
-<canvas id="canvas"></canvas>
+  <div class="wrap">
+    <div class="hud">
+      <div class="group">
+        <span class="tag">Level: <strong id="level">1</strong></span>
+        <span class="tag">Deaths: <strong id="deaths">0</strong></span>
+        <span class="tag">Coins: <strong id="coins">0</strong></span>
+      </div>
+      <div class="group">
+        <button class="btn" id="reset">Reset level</button>
+        <button class="btn" id="next">Skip to next</button>
+      </div>
+    </div>
 
-<div id="controls">
-  <div id="stick" class="stick">
-    <div id="knob" class="knob"></div>
+    <canvas id="game" width="900" height="480" aria-label="Obby game"></canvas>
+    <p class="hint">Controls: Arrow keys or A/D to move · Space to jump. Reach the gold goal. Avoid red traps. Grab coins.</p>
   </div>
-  <button id="jumpBtn" class="btn">JUMP</button>
-</div>
 
-<!-- THREE.JS -->
-<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
 
-<script>
-(() => {
+    // HUD elements
+    const levelEl = document.getElementById('level');
+    const deathsEl = document.getElementById('deaths');
+    const coinsEl = document.getElementById('coins');
+    const btnReset = document.getElementById('reset');
+    const btnNext = document.getElementById('next');
 
-/* ================= BASIC SETUP ================= */
-const canvas = document.getElementById("canvas");
-const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
-renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
-renderer.setSize(window.innerWidth, window.innerHeight);
+    // World constants
+    const gravity = 0.9;
+    const friction = 0.85; // horizontal damping
+    const tileYGround = canvas.height - 24; // ground baseline
 
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0b0e18);
+    // Input
+    const keys = new Map();
+    const keyOn = k => keys.get(k) === true;
 
-const camera = new THREE.PerspectiveCamera(
-  70,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  1000
-);
-camera.position.set(0, 6, 14);
-camera.lookAt(0, 2, 0);
+    // Player
+    const player = {
+      w: 26, h: 26,
+      x: 40, y: tileYGround - 26,
+      vx: 0, vy: 0,
+      speed: 0.9,
+      jump: -14,
+      canJump: true,
+      color: '#6ae36a'
+    };
 
-/* ================= LIGHTS ================= */
-scene.add(new THREE.HemisphereLight(0xaec9ff, 0x162040, 1));
-const dir = new THREE.DirectionalLight(0xffffff, 0.7);
-dir.position.set(5,10,5);
-scene.add(dir);
+    // Game state
+    let levelIndex = 0;
+    let deaths = 0;
+    let coins = 0;
+    let level, platforms, hazards, goal, coinItems;
 
-/* ================= PLAYER ================= */
-const playerSize = 0.6;
-const player = new THREE.Mesh(
-  new THREE.BoxGeometry(playerSize,playerSize,playerSize),
-  new THREE.MeshStandardMaterial({ color:0xd0e3ff })
-);
-player.position.set(0,3,0);
-scene.add(player);
+    // Level definitions (progressively harder)
+    const LEVELS = [
+      // Level 1
+      () => ({
+        platforms: [
+          rect(0, tileYGround, canvas.width, 24),     // ground
+          rect(180, 380, 120, 18),
+          rect(360, 330, 120, 18),
+          rect(540, 280, 120, 18),
+        ],
+        hazards: [
+          rect(300, tileYGround - 16, 80, 16),        // spike line
+        ],
+        goal: rect(780, 250, 26, 26),
+        coins: [
+          circle(210, 350, 8),
+          circle(390, 305, 8),
+          circle(570, 255, 8),
+        ]
+      }),
+      // Level 2: moving platform + more traps
+      () => ({
+        platforms: [
+          rect(0, tileYGround, canvas.width, 24),
+          movingRect(220, 380, 110, 18, { ax: 220, bx: 320, speed: 1.2 }),
+          rect(460, 330, 120, 18),
+          rect(650, 290, 100, 18),
+        ],
+        hazards: [
+          rect(330, tileYGround - 16, 160, 16),
+          rect(520, 314, 60, 16),
+        ],
+        goal: rect(820, 255, 26, 26),
+        coins: [
+          circle(250, 350, 8),
+          circle(490, 305, 8),
+          circle(690, 265, 8),
+        ]
+      }),
+      // Level 3: tighter jumps + more coins
+      () => ({
+        platforms: [
+          rect(0, tileYGround, canvas.width, 24),
+          rect(180, 380, 90, 18),
+          rect(310, 340, 90, 18),
+          rect(440, 300, 90, 18),
+          rect(570, 270, 90, 18),
+          rect(710, 250, 90, 18),
+        ],
+        hazards: [
+          rect(260, tileYGround - 16, 180, 16),
+          rect(500, 284, 70, 16),
+          rect(640, 254, 70, 16),
+        ],
+        goal: rect(820, 225, 26, 26),
+        coins: [
+          circle(200, 350, 8),
+          circle(330, 315, 8),
+          circle(460, 275, 8),
+          circle(590, 245, 8),
+          circle(730, 225, 8),
+        ]
+      })
+    ];
 
-/* ================= PLATFORM ================= */
-const platform = new THREE.Mesh(
-  new THREE.BoxGeometry(6,0.4,6),
-  new THREE.MeshStandardMaterial({ color:0x3a66ff })
-);
-platform.position.set(0,1,0);
-scene.add(platform);
+    // Primitive helpers
+    function rect(x, y, w, h) { return { type: 'rect', x, y, w, h, vx: 0 }; }
+    function movingRect(x, y, w, h, motion) {
+      return { type: 'rect', x, y, w, h, vx: 1, motion: { ...motion, dir: 1 } };
+    }
+    function circle(x, y, r) { return { type: 'circle', x, y, r, taken: false }; }
 
-/* ================= CONTROLS ================= */
-const stick = document.getElementById("stick");
-const knob = document.getElementById("knob");
-const jumpBtn = document.getElementById("jumpBtn");
+    // Reset/Load level
+    function loadLevel(i) {
+      levelIndex = i % LEVELS.length;
+      level = LEVELS[levelIndex]();
+      platforms = level.platforms;
+      hazards = level.hazards;
+      goal = level.goal;
+      coinItems = level.coins;
 
-let stickVec = {x:0,y:0};
-let jumpPressed = false;
+      // Respawn player
+      player.x = 40;
+      player.y = tileYGround - player.h;
+      player.vx = 0;
+      player.vy = 0;
+      player.canJump = true;
 
-function clamp(v,min,max){ return Math.max(min,Math.min(max,v)); }
+      // Update HUD
+      levelEl.textContent = (levelIndex + 1).toString();
+      updateCoins();
+    }
 
-stick.addEventListener("pointermove", e=>{
-  if(!e.buttons) return;
-  const r = stick.getBoundingClientRect();
-  const dx = e.clientX - (r.left + r.width/2);
-  const dy = e.clientY - (r.top + r.height/2);
-  const max = r.width*0.25;
-  const len = Math.hypot(dx,dy);
-  const s = len>max ? max/len : 1;
-  knob.style.transform = `translate(${dx*s}px,${dy*s}px)`;
-  stickVec.x = clamp(dx*s/max,-1,1);
-  stickVec.y = clamp(dy*s/max,-1,1);
-});
+    function updateCoins() {
+      coinsEl.textContent = coins.toString();
+    }
 
-stick.addEventListener("pointerup", ()=>{
-  knob.style.transform = "translate(-50%,-50%)";
-  stickVec.x = stickVec.y = 0;
-});
+    // Input handlers
+    document.addEventListener('keydown', e => {
+      keys.set(e.code, true);
+      // Prevent page scroll on Space/Arrow keys
+      if (['Space','ArrowUp','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
+    }, { passive: false });
+    document.addEventListener('keyup', e => keys.set(e.code, false));
 
-jumpBtn.onpointerdown = ()=> jumpPressed = true;
-jumpBtn.onpointerup   = ()=> jumpPressed = false;
+    btnReset.addEventListener('click', () => {
+      loadLevel(levelIndex);
+    });
+    btnNext.addEventListener('click', () => {
+      loadLevel(levelIndex + 1);
+    });
 
-/* ================= PHYSICS ================= */
-const vel = new THREE.Vector3();
-const GRAVITY = -14;
-const MOVE = 7;
-const JUMP = 7;
-let onGround = false;
+    // Physics and collision
+    function step(dt) {
+      // Horizontal input
+      const left = keyOn('ArrowLeft') || keyOn('KeyA');
+      const right = keyOn('ArrowRight') || keyOn('KeyD');
+      const jumping = keyOn('Space') || keyOn('ArrowUp');
 
-/* ================= LOOP ================= */
-function animate(){
-  requestAnimationFrame(animate);
+      if (left) player.vx -= player.speed;
+      if (right) player.vx += player.speed;
 
-  vel.x += stickVec.x * MOVE * 0.016;
-  vel.z += -stickVec.y * MOVE * 0.016;
-  vel.y += GRAVITY * 0.016;
+      // Apply friction and gravity
+      player.vx *= friction;
+      player.vy += gravity;
 
-  if(jumpPressed && onGround){
-    vel.y = JUMP;
-    onGround = false;
-  }
+      // Move platforms (simple horizontal oscillation)
+      for (const p of platforms) {
+        if (p.motion) {
+          p.x += p.motion.dir * p.motion.speed;
+          if (p.x <= p.motion.ax || p.x + p.w >= p.motion.bx) {
+            p.motion.dir *= -1;
+          }
+        }
+      }
 
-  player.position.addScaledVector(vel,0.016);
+      // Integrate X
+      player.x += player.vx;
 
-  // Ground collision
-  if(player.position.y - playerSize/2 < platform.position.y + 0.2){
-    player.position.y = platform.position.y + 0.2 + playerSize/2;
-    vel.y = 0;
-    onGround = true;
-  }
+      // Collide with platforms (X axis)
+      for (const p of platforms) {
+        if (aabb(player, p)) {
+          if (player.vx > 0) player.x = p.x - player.w;       // hit left side
+          else if (player.vx < 0) player.x = p.x + p.w;       // hit right side
+          player.vx = 0;
+        }
+      }
 
-  camera.position.lerp(
-    new THREE.Vector3(
-      player.position.x - 5,
-      player.position.y + 4,
-      player.position.z + 8
-    ), 0.1
-  );
-  camera.lookAt(player.position);
+      // Integrate Y
+      player.y += player.vy;
 
-  renderer.render(scene,camera);
-}
+      // Collide with platforms (Y axis)
+      let onGround = false;
+      for (const p of platforms) {
+        if (aabb(player, p)) {
+          if (player.vy > 0) { // falling
+            player.y = p.y - player.h;
+            player.vy = 0;
+            onGround = true;
+          } else if (player.vy < 0) { // jumping up
+            player.y = p.y + p.h;
+            player.vy = 0;
+          }
+        }
+      }
 
-animate();
+      // Jumping
+      if (jumping && onGround && player.canJump) {
+        player.vy = player.jump;
+        player.canJump = false;
+      }
+      if (!jumping) player.canJump = true;
 
-/* ================= RESIZE ================= */
-window.addEventListener("resize", ()=>{
-  camera.aspect = window.innerWidth/window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth,window.innerHeight);
-});
+      // Hazards
+      for (const h of hazards) {
+        if (aabb(player, h)) {
+          deaths++;
+          deathsEl.textContent = deaths.toString();
+          loadLevel(levelIndex); // restart level
+          break;
+        }
+      }
 
-})();
-</script>
+      // Coins
+      for (const c of coinItems) {
+        if (!c.taken && circleHits(player, c)) {
+          c.taken = true;
+          coins++;
+          updateCoins();
+        }
+      }
+
+      // Goal
+      if (aabb(player, goal)) {
+        loadLevel(levelIndex + 1);
+      }
+
+      // Keep player in bounds
+      if (player.y > canvas.height + 200) {
+        deaths++;
+        deathsEl.textContent = deaths.toString();
+        loadLevel(levelIndex);
+      }
+      player.x = Math.max(-100, Math.min(canvas.width + 100, player.x));
+    }
+
+    // Collision helpers
+    function aabb(a, b) {
+      return a.x < b.x + b.w &&
+             a.x + a.w > b.x &&
+             a.y < b.y + b.h &&
+             a.y + a.h > b.y;
+    }
+    function circleHits(a, c) {
+      // Treat player as center-to-center check against coin circle
+      const px = a.x + a.w / 2;
+      const py = a.y + a.h / 2;
+      const dx = px - c.x;
+      const dy = py - c.y;
+      return Math.hypot(dx, dy) < c.r + Math.max(a.w, a.h) * 0.35;
+    }
+
+    // Rendering
+    function draw() {
+      // Clear
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Backdrop horizon
+      const g = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      g.addColorStop(0, '#0b1218');
+      g.addColorStop(1, '#0f1620');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Parallax decorations
+      ctx.fillStyle = 'rgba(255,255,255,0.05)';
+      for (let i = 0; i < 10; i++) {
+        ctx.fillRect(i * 100 + (Date.now()/1500 % 100), 60 + Math.sin(i) * 20, 60, 4);
+      }
+
+      // Platforms
+      for (const p of platforms) {
+        ctx.fillStyle = '#243443';
+        ctx.fillRect(p.x, p.y, p.w, p.h);
+        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+        ctx.strokeRect(p.x, p.y, p.w, p.h);
+      }
+
+      // Hazards
+      for (const h of hazards) {
+        ctx.fillStyle = '#ff5964';
+        ctx.fillRect(h.x, h.y, h.w, h.h);
+        // spikes effect
+        ctx.fillStyle = 'rgba(255,255,255,0.15)';
+        for (let i = 0; i < h.w; i += 8) {
+          ctx.beginPath();
+          ctx.moveTo(h.x + i, h.y);
+          ctx.lineTo(h.x + i + 4, h.y - 6);
+          ctx.lineTo(h.x + i + 8, h.y);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+
+      // Goal
+      ctx.fillStyle = '#ffd166';
+      ctx.fillRect(goal.x, goal.y, goal.w, goal.h);
+      // sparkle
+      ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+      ctx.beginPath();
+      const t = (Date.now() / 300) % (Math.PI * 2);
+      ctx.moveTo(goal.x + goal.w/2, goal.y - 6 + Math.sin(t)*2);
+      ctx.lineTo(goal.x + goal.w/2, goal.y + goal.h + 6 + Math.cos(t)*2);
+      ctx.stroke();
+
+      // Coins
+      for (const c of coinItems) {
+        if (c.taken) continue;
+        const grad = ctx.createRadialGradient(c.x, c.y, 2, c.x, c.y, c.r);
+        grad.addColorStop(0, '#fff3a1');
+        grad.addColorStop(1, '#e7b700');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
+        ctx.fill();
+        // twinkle
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        ctx.fillRect(c.x - 1, c.y - c.r + 2, 2, 4);
+      }
+
+      // Player
+      ctx.fillStyle = '#6ae36a';
+      ctx.fillRect(player.x, player.y, player.w, player.h);
+      // Outline
+      ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+      ctx.strokeRect(player.x, player.y, player.w, player.h);
+    }
+
+    // Game loop
+    let last = performance.now();
+    function loop(now) {
+      const dt = Math.min(32, now - last);
+      last = now;
+      step(dt);
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    // Start
+    loadLevel(0);
+    requestAnimationFrame(loop);
+  </script>
 </body>
 </html>
