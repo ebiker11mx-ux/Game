@@ -1,185 +1,467 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>3D Obstacle Course</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<title>3D Obstacle Course - Mobile Web</title>
 <style>
-    body { margin: 0; overflow: hidden; }
-    canvas { display: block; }
-    #controls {
-        position: fixed;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        display: flex;
-        gap: 10px;
-    }
-    button {
-        padding: 20px;
-        font-size: 18px;
-        border-radius: 50%;
-        background-color: rgba(0,0,0,0.5);
-        color: white;
-        border: none;
-    }
+  html, body { margin: 0; height: 100%; background: #101418; overflow: hidden; font-family: system-ui, Arial; }
+  #game { position: fixed; inset: 0; }
+  /* UI */
+  .hud { position: fixed; inset: 0; pointer-events: none; }
+  .controls { position: absolute; bottom: 16px; left: 16px; width: 160px; height: 160px; pointer-events: auto; }
+  .joystick { position: relative; width: 100%; height: 100%; border-radius: 50%; background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.15); }
+  .stick { position: absolute; left: 50%; top: 50%; width: 70px; height: 70px; transform: translate(-50%,-50%); border-radius: 50%; background: rgba(255,255,255,0.25); border: 2px solid rgba(255,255,255,0.35); transition: background 0.1s; }
+  .buttons { position: absolute; bottom: 16px; right: 16px; display: flex; gap: 12px; pointer-events: auto; }
+  .btn { min-width: 86px; min-height: 86px; border-radius: 12px; background: linear-gradient(180deg, #3a8ffd, #1663d9); color: #fff; font-weight: 700; border: none; box-shadow: 0 8px 24px rgba(22,99,217,0.35); padding: 10px; }
+  .btn:active { transform: translateY(2px); box-shadow: 0 4px 16px rgba(22,99,217,0.35); }
+  .btn.secondary { background: linear-gradient(180deg, #ff9b3a, #d95c16); box-shadow: 0 8px 24px rgba(217,92,22,0.35); }
+  .status { position: absolute; top: 12px; left: 12px; color: #cfe1ff; font-size: 14px; padding: 6px 10px; background: rgba(19,28,38,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; pointer-events: none; }
+  /* Helper HUD texts */
+  .status strong { color: #fff; }
+  @media (max-width: 480px) {
+    .controls { width: 140px; height: 140px; }
+    .stick { width: 60px; height: 60px; }
+    .btn { min-width: 76px; min-height: 76px; font-size: 13px; }
+  }
 </style>
 </head>
 <body>
-<div id="controls">
-    <button id="jumpBtn">Jump</button>
-    <button id="doubleJumpBtn">Double Jump</button>
+<canvas id="game"></canvas>
+<div class="hud">
+  <div class="controls">
+    <div id="joystick" class="joystick">
+      <div id="stick" class="stick"></div>
+    </div>
+  </div>
+  <div class="buttons">
+    <button id="jumpBtn" class="btn">Jump</button>
+    <button id="doubleJumpBtn" class="btn secondary">Double</button>
+  </div>
+  <div class="status">
+    <div><strong>Checkpoint:</strong> <span id="checkpointIdx">0</span> / <span id="checkpointTotal">0</span></div>
+    <div><strong>Progress:</strong> <span id="progressPct">0%</span></div>
+  </div>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.155.0/examples/js/controls/PointerLockControls.js"></script>
+
+<!-- Three.js CDN -->
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+
 <script>
-    let scene, camera, renderer, player, controls;
-    let obstacles = [], checkpoints = [];
-    let speed = 0.1;
-    let jumpVelocity = 0;
-    let canDoubleJump = true;
-    let gravity = 0.01;
-    let lastCheckpoint = new THREE.Vector3(0, 1, 0);
+(() => {
+  const canvas = document.getElementById('game');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-    init();
-    animate();
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0f1320);
 
-    function init() {
-        scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87ceeb);
+  // Camera
+  const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 500);
+  camera.position.set(0, 8, 12);
 
-        camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 1, 5);
+  // Lighting
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x223355, 0.6);
+  scene.add(hemi);
+  const dir = new THREE.DirectionalLight(0xffffff, 0.9);
+  dir.position.set(10, 20, 10);
+  dir.castShadow = true;
+  dir.shadow.mapSize.set(1024, 1024);
+  dir.shadow.camera.near = 0.5;
+  dir.shadow.camera.far = 100;
+  scene.add(dir);
 
-        renderer = new THREE.WebGLRenderer({antialias:true});
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
+  // Sky glow
+  const fogColor = new THREE.Color(0x0b1020);
+  scene.fog = new THREE.Fog(fogColor, 40, 140);
 
-        // Lighting
-        const light = new THREE.DirectionalLight(0xffffff, 1);
-        light.position.set(5,10,7);
-        scene.add(light);
+  // Ground (fall void below)
+  const groundGeo = new THREE.PlaneGeometry(1000, 1000);
+  const groundMat = new THREE.MeshStandardMaterial({ color: 0x0b0f18, roughness: 1, metalness: 0 });
+  const ground = new THREE.Mesh(groundGeo, groundMat);
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  scene.add(ground);
 
-        // Player
-        player = new THREE.Mesh(
-            new THREE.BoxGeometry(1,1,1),
-            new THREE.MeshStandardMaterial({color:0xff0000})
-        );
-        player.position.set(0,1,0);
-        scene.add(player);
+  // Player
+  const playerRadius = 0.6;
+  const playerGeo = new THREE.SphereGeometry(playerRadius, 24, 16);
+  const playerMat = new THREE.MeshStandardMaterial({ color: 0x86b9ff, emissive: 0x001838, roughness: 0.4, metalness: 0.2 });
+  const player = new THREE.Mesh(playerGeo, playerMat);
+  player.castShadow = true;
+  scene.add(player);
 
-        // Ground
-        addObstacle(0, 0, -5, 10, 1, 10); // start platform
+  // Player physics state
+  const state = {
+    pos: new THREE.Vector3(0, 2, 0),
+    vel: new THREE.Vector3(0, 0, 0),
+    acc: new THREE.Vector3(0, 0, 0),
+    onGround: false,
+    jumpCount: 0,
+    lastCheckpoint: new THREE.Vector3(0, 2, 0),
+    checkpointIndex: 0,
+    courseLength: 0,
+  };
 
-        // Create obstacle course
-        for(let i=0; i<20; i++){
-            let size = 2 + Math.random()*2;
-            let x = (Math.random()-0.5) * 6;
-            let y = 0;
-            let z = -10 - i*5;
-            addObstacle(x,y,z,size,1,size);
+  // Course generation (progressively harder)
+  const platforms = [];
+  const platformGroup = new THREE.Group();
+  scene.add(platformGroup);
 
-            // Add checkpoint every 3 blocks
-            if(i % 3 === 0){
-                let cp = new THREE.Mesh(
-                    new THREE.BoxGeometry(1,1,1),
-                    new THREE.MeshStandardMaterial({color:0x00ff00})
-                );
-                cp.position.set(x,2,z);
-                scene.add(cp);
-                checkpoints.push(cp);
-            }
+  const makePlatform = (w, h, d, x, y, z, options = {}) => {
+    const geo = new THREE.BoxGeometry(w, h, d);
+    const mat = new THREE.MeshStandardMaterial({
+      color: options.color || 0x2a3758,
+      roughness: 0.7,
+      metalness: 0.05,
+      emissive: options.emissive || 0x000000,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(x, y, z);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.userData = {
+      size: { w, h, d },
+      isMoving: !!options.isMoving,
+      moveAxis: options.moveAxis || 'x',
+      moveAmp: options.moveAmp || 0,
+      moveSpeed: options.moveSpeed || 0,
+      basePos: new THREE.Vector3(x, y, z),
+      checkpoint: true,
+      index: platforms.length
+    };
+    platformGroup.add(mesh);
+    platforms.push(mesh);
+    return mesh;
+  };
+
+  // Build a single long level:
+  // Start: larger, close platforms. Mid: smaller, wider gaps. End: moving platforms.
+  let zOffset = 0;
+  const startCount = 8, midCount = 10, endCount = 8;
+  const totalCount = startCount + midCount + endCount;
+  document.getElementById('checkpointTotal').textContent = totalCount;
+
+  // Start section
+  for (let i = 0; i < startCount; i++) {
+    const w = 6 - i * 0.2;
+    const d = 6 - i * 0.2;
+    const gap = 4 + i * 0.3;
+    zOffset -= gap;
+    makePlatform(w, 0.8, d, (Math.random() - 0.5) * 2, 0.5, zOffset);
+  }
+
+  // Mid section
+  for (let i = 0; i < midCount; i++) {
+    const w = 4.5 - i * 0.2;
+    const d = 3.5 - i * 0.2;
+    const gap = 5 + i * 0.45;
+    zOffset -= gap;
+    // Add slight lateral offsets for difficulty
+    const x = (Math.sin(i * 0.7) * 3);
+    makePlatform(w, 0.7, d, x, 1.2, zOffset);
+  }
+
+  // End section (moving platforms)
+  for (let i = 0; i < endCount; i++) {
+    const w = 3.2;
+    const d = 2.6;
+    const gap = 6 + i * 0.55;
+    zOffset -= gap;
+    const axis = i % 2 === 0 ? 'x' : 'y'; // some bobbing in y for spice
+    const amp = axis === 'x' ? 2.2 : 0.8;
+    const speed = 0.8 + i * 0.05;
+    makePlatform(w, 0.6, d, 0, 1.6, zOffset, { isMoving: true, moveAxis: axis, moveAmp: amp, moveSpeed: speed, emissive: 0x06122a, color: 0x25406a });
+  }
+
+  // Start spawn on first platform
+  const first = platforms[0];
+  state.pos.copy(first.position).add(new THREE.Vector3(0, 2, 0));
+  state.lastCheckpoint.copy(state.pos);
+
+  // Decorative spark at checkpoints
+  const sparkleMat = new THREE.PointsMaterial({ color: 0x80d0ff, size: 0.12 });
+  const sparkleGeo = new THREE.BufferGeometry();
+  sparkleGeo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(3), 3));
+  const sparkle = new THREE.Points(sparkleGeo, sparkleMat);
+  sparkle.visible = false;
+  scene.add(sparkle);
+
+  // Joystick
+  const joystick = document.getElementById('joystick');
+  const stick = document.getElementById('stick');
+  let joyActive = false, joyVector = new THREE.Vector2(0, 0);
+  let joyCenter = null;
+  const JOY_RADIUS = joystick.clientWidth * 0.5 - stick.clientWidth * 0.5;
+
+  const setStick = (dx, dy) => {
+    stick.style.transform = `translate(${dx - stick.clientWidth/2}px, ${dy - stick.clientHeight/2}px)`;
+  };
+
+  const joyStart = (clientX, clientY) => {
+    const rect = joystick.getBoundingClientRect();
+    joyCenter = new THREE.Vector2(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    joyActive = true;
+    joyMove(clientX, clientY);
+  };
+  const joyMove = (clientX, clientY) => {
+    if (!joyActive || !joyCenter) return;
+    const v = new THREE.Vector2(clientX - joyCenter.x, clientY - joyCenter.y);
+    const len = Math.min(v.length(), JOY_RADIUS);
+    v.setLength(len);
+    setStick(v.x + joystick.clientWidth/2, v.y + joystick.clientHeight/2);
+    // Map: up on screen = forward (negative z)
+    joyVector.set(v.x / JOY_RADIUS, v.y / JOY_RADIUS);
+  };
+  const joyEnd = () => {
+    joyActive = false;
+    joyVector.set(0, 0);
+    setStick(joystick.clientWidth/2, joystick.clientHeight/2);
+  };
+
+  joystick.addEventListener('touchstart', e => {
+    const t = e.changedTouches[0];
+    joyStart(t.clientX, t.clientY);
+  });
+  joystick.addEventListener('touchmove', e => {
+    const t = e.changedTouches[0];
+    joyMove(t.clientX, t.clientY);
+  });
+  joystick.addEventListener('touchend', joyEnd);
+  joystick.addEventListener('mousedown', e => joyStart(e.clientX, e.clientY));
+  window.addEventListener('mousemove', e => joyMove(e.clientX, e.clientY));
+  window.addEventListener('mouseup', joyEnd);
+
+  // Buttons: Jump and Double Jump
+  const jumpBtn = document.getElementById('jumpBtn');
+  const doubleJumpBtn = document.getElementById('doubleJumpBtn');
+
+  const tryJump = (force = 9.5) => {
+    if (state.onGround) {
+      state.vel.y = force;
+      state.onGround = false;
+      state.jumpCount = 1;
+      sparkAt(player.position);
+    }
+  };
+  const tryDoubleJump = (force = 9.0) => {
+    if (!state.onGround && state.jumpCount === 1) {
+      state.vel.y = force;
+      state.jumpCount = 2;
+      sparkAt(player.position);
+    }
+  };
+
+  jumpBtn.addEventListener('touchstart', () => tryJump());
+  jumpBtn.addEventListener('click', () => tryJump());
+  doubleJumpBtn.addEventListener('touchstart', () => tryDoubleJump());
+  doubleJumpBtn.addEventListener('click', () => tryDoubleJump());
+
+  // Movement tuning
+  const GRAVITY = -20;     // units/s^2
+  const MOVE_ACCEL = 28;   // movement acceleration
+  const AIR_ACCEL = 12;    // air control
+  const MAX_SPEED = 8.5;
+  const FRICTION = 14;
+
+  // Collision and checkpoints
+  const isOverPlatform = (pos, plat) => {
+    const { w, h, d } = plat.userData.size;
+    const p = plat.position;
+    return (
+      pos.x >= p.x - w/2 - playerRadius &&
+      pos.x <= p.x + w/2 + playerRadius &&
+      pos.z >= p.z - d/2 - playerRadius &&
+      pos.z <= p.z + d/2 + playerRadius
+    );
+  };
+
+  const groundHeightAt = (pos) => {
+    let hitHeight = -Infinity;
+    let hitPlat = null;
+    for (let plat of platforms) {
+      const { w, h, d } = plat.userData.size;
+      const p = plat.position;
+      // AABB check in XZ
+      if (pos.x >= p.x - w/2 - playerRadius &&
+          pos.x <= p.x + w/2 + playerRadius &&
+          pos.z >= p.z - d/2 - playerRadius &&
+          pos.z <= p.z + d/2 + playerRadius) {
+        const top = p.y + h/2;
+        if (top > hitHeight) {
+          hitHeight = top;
+          hitPlat = plat;
         }
+      }
+    }
+    return { height: hitHeight, plat: hitPlat };
+  };
 
-        window.addEventListener('resize', onWindowResize, false);
+  const updateMovingPlatforms = (t) => {
+    for (let plat of platforms) {
+      const ud = plat.userData;
+      if (!ud.isMoving) continue;
+      const phase = Math.sin(t * ud.moveSpeed);
+      if (ud.moveAxis === 'x') {
+        plat.position.x = ud.basePos.x + phase * ud.moveAmp;
+      } else if (ud.moveAxis === 'y') {
+        plat.position.y = ud.basePos.y + phase * ud.moveAmp;
+      } else if (ud.moveAxis === 'z') {
+        plat.position.z = ud.basePos.z + phase * ud.moveAmp;
+      }
+    }
+  };
 
-        // Controls
-        document.getElementById('jumpBtn').addEventListener('click', () => jump(false));
-        document.getElementById('doubleJumpBtn').addEventListener('click', () => jump(true));
+  // Sparkle visual
+  function sparkAt(vec3) {
+    sparkle.visible = true;
+    sparkle.position.copy(vec3).add(new THREE.Vector3(0, 0.8, 0));
+    let t0 = performance.now();
+    const life = 220;
+    const animateSpark = () => {
+      const t = performance.now() - t0;
+      const alpha = Math.max(0, 1 - t / life);
+      sparkle.material.opacity = alpha;
+      sparkle.material.transparent = true;
+      if (t < life) requestAnimationFrame(animateSpark);
+      else sparkle.visible = false;
+    };
+    animateSpark();
+  }
+
+  // Progress HUD
+  const checkpointIdxEl = document.getElementById('checkpointIdx');
+  const progressPctEl = document.getElementById('progressPct');
+  const updateHUD = () => {
+    checkpointIdxEl.textContent = state.checkpointIndex;
+    const pct = Math.max(0, Math.min(100, Math.round((state.checkpointIndex / totalCount) * 100)));
+    progressPctEl.textContent = `${pct}%`;
+  };
+
+  // Game loop
+  let lastTime = performance.now();
+
+  function loop() {
+    const now = performance.now();
+    const dt = Math.min(0.033, (now - lastTime) / 1000); // clamp dt
+    lastTime = now;
+
+    // Update moving platforms
+    updateMovingPlatforms(now * 0.0015);
+
+    // Input mapping (joystick y forward)
+    const inputX = joyVector.x;        // left/right
+    const inputZ = -joyVector.y;       // forward/back
+
+    const accel = state.onGround ? MOVE_ACCEL : AIR_ACCEL;
+    state.acc.set(inputX * accel, 0, inputZ * accel);
+
+    // Apply friction on ground
+    if (state.onGround) {
+      const speedXZ = Math.hypot(state.vel.x, state.vel.z);
+      if (speedXZ > 0) {
+        const fr = Math.min(FRICTION * dt, 1);
+        state.vel.x *= (1 - fr);
+        state.vel.z *= (1 - fr);
+      }
     }
 
-    function addObstacle(x,y,z,w,h,d){
-        let geometry = new THREE.BoxGeometry(w,h,d);
-        let material = new THREE.MeshStandardMaterial({color:0x808080});
-        let cube = new THREE.Mesh(geometry, material);
-        cube.position.set(x, y, z);
-        scene.add(cube);
-        obstacles.push(cube);
+    // Accelerate
+    state.vel.x += state.acc.x * dt;
+    state.vel.z += state.acc.z * dt;
+
+    // Clamp horizontal speed
+    const speed = Math.hypot(state.vel.x, state.vel.z);
+    if (speed > MAX_SPEED) {
+      const scale = MAX_SPEED / speed;
+      state.vel.x *= scale;
+      state.vel.z *= scale;
     }
 
-    function onWindowResize() {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-    }
+    // Gravity
+    state.vel.y += GRAVITY * dt;
 
-    function jump(doubleJump){
-        if(doubleJump && canDoubleJump){
-            jumpVelocity = 0.2;
-            canDoubleJump = false;
-        } else if(!doubleJump && player.position.y <= 1.01){
-            jumpVelocity = 0.2;
+    // Predict next position
+    state.pos.x += state.vel.x * dt;
+    state.pos.z += state.vel.z * dt;
+    state.pos.y += state.vel.y * dt;
+
+    // Ground collision (platform tops)
+    const { height: gHeight, plat: currentPlat } = groundHeightAt(state.pos);
+    const feet = state.pos.y - playerRadius;
+    if (gHeight !== -Infinity && feet <= gHeight + 0.02 && state.vel.y <= 0) {
+      // Snap onto platform
+      state.pos.y = gHeight + playerRadius;
+      state.vel.y = 0;
+      if (!state.onGround) {
+        state.onGround = true;
+        state.jumpCount = 0;
+      }
+      // Checkpoint update when centered within bounds
+      if (currentPlat && currentPlat.userData.checkpoint) {
+        const idx = currentPlat.userData.index + 1; // human-friendly 1-based
+        if (idx > state.checkpointIndex) {
+          state.checkpointIndex = idx;
+          state.lastCheckpoint.copy(currentPlat.position).add(new THREE.Vector3(0, 2, 0));
+          sparkAt(currentPlat.position);
+          updateHUD();
         }
+      }
+    } else {
+      state.onGround = false;
     }
 
-    function checkCollision(){
-        let onGround = false;
-        for(let obs of obstacles){
-            if(
-                player.position.x + 0.5 > obs.position.x - obs.scale.x/2 &&
-                player.position.x - 0.5 < obs.position.x + obs.scale.x/2 &&
-                player.position.y - 0.5 <= obs.position.y + obs.scale.y/2 &&
-                player.position.y - 0.5 > obs.position.y &&
-                player.position.z + 0.5 > obs.position.z - obs.scale.z/2 &&
-                player.position.z - 0.5 < obs.position.z + obs.scale.z/2
-            ){
-                player.position.y = obs.position.y + 1;
-                jumpVelocity = 0;
-                canDoubleJump = true;
-                onGround = true;
-            }
-        }
-        return onGround;
+    // Fall detection -> respawn at last checkpoint
+    if (state.pos.y < -20) {
+      state.pos.copy(state.lastCheckpoint);
+      state.vel.set(0, 0, 0);
+      state.onGround = false;
+      state.jumpCount = 0;
     }
 
-    function checkCheckpoint(){
-        for(let cp of checkpoints){
-            if(player.position.distanceTo(cp.position) < 1){
-                lastCheckpoint.copy(cp.position);
-                lastCheckpoint.y = 1;
-            }
-        }
+    // Update player mesh
+    player.position.copy(state.pos);
+
+    // Camera follow (smooth third-person)
+    const camTarget = new THREE.Vector3(state.pos.x, state.pos.y + 2.5, state.pos.z + 6.5);
+    camera.position.lerp(camTarget, 0.12);
+    camera.lookAt(new THREE.Vector3(state.pos.x, state.pos.y + 1.2, state.pos.z));
+
+    renderer.render(scene, camera);
+    requestAnimationFrame(loop);
+  }
+  loop();
+
+  // Resize handling
+  window.addEventListener('resize', () => {
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+  });
+
+  // Desktop convenience: WASD + Space + Shift for double jump
+  const keys = {};
+  window.addEventListener('keydown', (e) => { keys[e.code] = true; });
+  window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+
+  function desktopInputPatch() {
+    const kx = (keys['KeyA'] ? -1 : 0) + (keys['KeyD'] ? 1 : 0);
+    const kz = (keys['KeyW'] ? 1 : 0) + (keys['KeyS'] ? -1 : 0);
+    if (kx !== 0 || kz !== 0) {
+      joyVector.set(kx, -kz).setLength(Math.min(1, Math.hypot(kx, kz)));
     }
+    if (keys['Space']) { tryJump(); keys['Space'] = false; }
+    if (keys['ShiftLeft'] || keys['ShiftRight']) { tryDoubleJump(); keys['ShiftLeft'] = keys['ShiftRight'] = false; }
+    requestAnimationFrame(desktopInputPatch);
+  }
+  desktopInputPatch();
 
-    function animate() {
-        requestAnimationFrame(animate);
-
-        // Move forward automatically
-        player.position.z -= speed;
-
-        // Gravity
-        jumpVelocity -= gravity;
-        player.position.y += jumpVelocity;
-
-        // Collision
-        let onGround = checkCollision();
-        if(onGround && jumpVelocity < 0) jumpVelocity = 0;
-
-        // Checkpoint
-        checkCheckpoint();
-
-        // Respawn if fall
-        if(player.position.y < -5){
-            player.position.copy(lastCheckpoint);
-            jumpVelocity = 0;
-        }
-
-        // Camera follows player
-        camera.position.lerp(new THREE.Vector3(player.position.x, player.position.y + 3, player.position.z + 5),0.1);
-        camera.lookAt(player.position);
-
-        renderer.render(scene, camera);
-    }
+  // Initial HUD
+  updateHUD();
+})();
 </script>
 </body>
 </html>
