@@ -3,162 +3,177 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>3D Obby Game</title>
+<title>3D Obby Mobile</title>
+
 <style>
-  body { margin: 0; overflow: hidden; background: #000; }
-    canvas { display: block; }
+  body { margin: 0; overflow: hidden; background: black; }
+  canvas { display: block; }
 
-      /* Mobile Controls */
-        .controls {
-            position: fixed;
-                bottom: 20px;
-                    width: 100%;
-                        display: flex;
-                            justify-content: space-between;
-                                padding: 0 20px;
-                                  }
-                                    button {
-                                        width: 70px;
-                                            height: 70px;
-                                                font-size: 20px;
-                                                    border-radius: 50%;
-                                                        border: none;
-                                                            background: rgba(255,255,255,0.7);
-                                                              }
-                                                              </style>
-                                                              </head>
-                                                              <body>
+  .controls {
+    position: fixed;
+    bottom: 20px;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 20px;
+    pointer-events: auto;
+  }
 
-                                                              <div class="controls">
-                                                                <button id="left">◀</button>
-                                                                  <button id="jump">⬆</button>
-                                                                    <button id="right">▶</button>
-                                                                    </div>
+  button {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    border: none;
+    font-size: 22px;
+    background: rgba(255,255,255,0.8);
+  }
+</style>
+</head>
+<body>
 
-                                                                    <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+<div class="controls">
+  <button id="left">◀</button>
+  <button id="jump">⬆</button>
+  <button id="right">▶</button>
+</div>
 
-                                                                    <script>
-                                                                    /* SCENE */
-                                                                    const scene = new THREE.Scene();
-                                                                    scene.background = new THREE.Color(0x87ceeb);
+<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+<script>
+// ---------------- SCENE ----------------
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb);
 
-                                                                    /* CAMERA */
-                                                                    const camera = new THREE.PerspectiveCamera(
-                                                                      75,
-                                                                        window.innerWidth / window.innerHeight,
-                                                                          0.1,
-                                                                            1000
-                                                                            );
+// ---------------- CAMERA ----------------
+const camera = new THREE.PerspectiveCamera(
+  70,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  1000
+);
 
-                                                                            /* RENDERER */
-                                                                            const renderer = new THREE.WebGLRenderer({ antialias: true });
-                                                                            renderer.setSize(window.innerWidth, window.innerHeight);
-                                                                            document.body.appendChild(renderer.domElement);
+// ---------------- RENDERER ----------------
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
 
-                                                                            /* LIGHT */
-                                                                            const light = new THREE.DirectionalLight(0xffffff, 1);
-                                                                            light.position.set(5, 10, 5);
-                                                                            scene.add(light);
+// ---------------- LIGHT ----------------
+const light = new THREE.DirectionalLight(0xffffff, 1);
+light.position.set(5, 10, 5);
+scene.add(light);
+scene.add(new THREE.AmbientLight(0xffffff, 0.4));
 
-                                                                            /* PLAYER */
-                                                                            const playerGeometry = new THREE.BoxGeometry(1, 1, 1);
-                                                                            const playerMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-                                                                            const player = new THREE.Mesh(playerGeometry, playerMaterial);
-                                                                            player.position.y = 2;
-                                                                            scene.add(player);
+// ---------------- PLAYER ----------------
+const player = new THREE.Mesh(
+  new THREE.BoxGeometry(1, 1, 1),
+  new THREE.MeshStandardMaterial({ color: 0xff4444 })
+);
+player.position.set(0, 2, 0);
+scene.add(player);
 
-                                                                            /* PLATFORMS */
-                                                                            const platforms = [];
+// ---------------- LEVELS ----------------
+const platforms = [];
 
-                                                                            function createPlatform(x, y, z) {
-                                                                              const geo = new THREE.BoxGeometry(5, 1, 5);
-                                                                                const mat = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
-                                                                                  const platform = new THREE.Mesh(geo, mat);
-                                                                                    platform.position.set(x, y, z);
-                                                                                      scene.add(platform);
-                                                                                        platforms.push(platform);
-                                                                                        }
+function platform(x, y, z, w = 5) {
+  const p = new THREE.Mesh(
+    new THREE.BoxGeometry(w, 1, 5),
+    new THREE.MeshStandardMaterial({ color: 0x22ff22 })
+  );
+  p.position.set(x, y, z);
+  scene.add(p);
+  platforms.push(p);
+}
 
-                                                                                        createPlatform(0, 0, 0);
-                                                                                        createPlatform(7, 2, 0);
-                                                                                        createPlatform(14, 4, 0);
-                                                                                        createPlatform(21, 6, 0);
+// Level 1
+platform(0, 0, 0);
+platform(0, 1, -8);
+platform(2, 2, -16);
 
-                                                                                        /* PHYSICS */
-                                                                                        let velocityY = 0;
-                                                                                        let onGround = false;
-                                                                                        const gravity = 0.02;
+// Level 2
+platform(-2, 3, -26);
+platform(0, 4, -36);
+platform(3, 5, -46);
 
-                                                                                        /* CAMERA FOLLOW */
-                                                                                        camera.position.set(0, 5, 10);
+// Level 3 (harder)
+platform(-3, 6, -58, 3);
+platform(0, 7, -68, 3);
+platform(3, 8, -78, 3);
 
-                                                                                        /* CONTROLS */
-                                                                                        let moveLeft = false;
-                                                                                        let moveRight = false;
+// Finish
+platform(0, 9, -90, 8);
 
-                                                                                        document.getElementById("left").ontouchstart = () => moveLeft = true;
-                                                                                        document.getElementById("left").ontouchend = () => moveLeft = false;
+// ---------------- PHYSICS ----------------
+let velocityY = 0;
+let onGround = false;
+const gravity = 0.02;
 
-                                                                                        document.getElementById("right").ontouchstart = () => moveRight = true;
-                                                                                        document.getElementById("right").ontouchend = () => moveRight = false;
+// ---------------- CONTROLS ----------------
+let left = false;
+let right = false;
 
-                                                                                        document.getElementById("jump").ontouchstart = () => {
-                                                                                          if (onGround) {
-                                                                                              velocityY = 0.35;
-                                                                                                  onGround = false;
-                                                                                                    }
-                                                                                                    };
+document.getElementById("left").ontouchstart = () => left = true;
+document.getElementById("left").ontouchend = () => left = false;
 
-                                                                                                    /* GAME LOOP */
-                                                                                                    function animate() {
-                                                                                                      requestAnimationFrame(animate);
+document.getElementById("right").ontouchstart = () => right = true;
+document.getElementById("right").ontouchend = () => right = false;
 
-                                                                                                        // Movement
-                                                                                                          if (moveLeft) player.position.x -= 0.1;
-                                                                                                            if (moveRight) player.position.x += 0.1;
+document.getElementById("jump").ontouchstart = () => {
+  if (onGround) {
+    velocityY = 0.35;
+    onGround = false;
+  }
+};
 
-                                                                                                              // Gravity
-                                                                                                                velocityY -= gravity;
-                                                                                                                  player.position.y += velocityY;
+// ---------------- GAME LOOP ----------------
+function animate() {
+  requestAnimationFrame(animate);
 
-                                                                                                                    // Collision
-                                                                                                                      onGround = false;
-                                                                                                                        platforms.forEach(p => {
-                                                                                                                            if (
-                                                                                                                                  player.position.x > p.position.x - 2.5 &&
-                                                                                                                                        player.position.x < p.position.x + 2.5 &&
-                                                                                                                                              player.position.y <= p.position.y + 1 &&
-                                                                                                                                                    player.position.y >= p.position.y &&
-                                                                                                                                                          player.position.z === p.position.z
-                                                                                                                                                              ) {
-                                                                                                                                                                    velocityY = 0;
-                                                                                                                                                                          player.position.y = p.position.y + 1;
-                                                                                                                                                                                onGround = true;
-                                                                                                                                                                                    }
-                                                                                                                                                                                      });
+  // Movement
+  if (left) player.position.x -= 0.1;
+  if (right) player.position.x += 0.1;
 
-                                                                                                                                                                                        // Fall reset
-                                                                                                                                                                                          if (player.position.y < -10) {
-                                                                                                                                                                                              player.position.set(0, 2, 0);
-                                                                                                                                                                                                  velocityY = 0;
-                                                                                                                                                                                                    }
+  // Gravity
+  velocityY -= gravity;
+  player.position.y += velocityY;
 
-                                                                                                                                                                                                      // Camera follow
-                                                                                                                                                                                                        camera.position.x = player.position.x;
-                                                                                                                                                                                                          camera.lookAt(player.position);
+  // Collision
+  onGround = false;
+  platforms.forEach(p => {
+    const dx = Math.abs(player.position.x - p.position.x);
+    const dz = Math.abs(player.position.z - p.position.z);
+    const dy = player.position.y - p.position.y;
 
-                                                                                                                                                                                                            renderer.render(scene, camera);
-                                                                                                                                                                                                            }
+    if (dx < 2.5 && dz < 2.5 && dy <= 1 && dy > 0) {
+      velocityY = 0;
+      player.position.y = p.position.y + 1;
+      onGround = true;
+    }
+  });
 
-                                                                                                                                                                                                            animate();
+  // Respawn if fall
+  if (player.position.y < -20) {
+    player.position.set(0, 2, 0);
+    velocityY = 0;
+  }
 
-                                                                                                                                                                                                            /* RESIZE */
-                                                                                                                                                                                                            window.addEventListener("resize", () => {
-                                                                                                                                                                                                              camera.aspect = window.innerWidth / window.innerHeight;
-                                                                                                                                                                                                                camera.updateProjectionMatrix();
-                                                                                                                                                                                                                  renderer.setSize(window.innerWidth, window.innerHeight);
-                                                                                                                                                                                                                  });
-                                                                                                                                                                                                                  </script>
+  // Camera follow
+  camera.position.set(
+    player.position.x,
+    player.position.y + 6,
+    player.position.z + 12
+  );
+  camera.lookAt(player.position);
 
-                                                                                                                                                                                                                  </body>
-                                                                                                                                                                                                                  </html>
+  renderer.render(scene, camera);
+}
+
+animate();
+
+// ---------------- RESIZE ----------------
+window.addEventListener("resize", () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>
