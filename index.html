@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>3D Mobile Obby 5 Levels</title>
+<title>3D Mobile Obby Level Select</title>
 <style>
 body { margin:0; overflow:hidden; background:black; }
 canvas { display:block; }
@@ -13,10 +13,21 @@ canvas { display:block; }
 .stick { width:50px; height:50px; background:rgba(255,255,255,0.9); border-radius:50%; position:absolute; top:35px; left:35px; }
 .buttons { display:flex; flex-direction:column; gap:15px; pointer-events:auto; }
 button { width:70px; height:70px; border-radius:50%; border:none; font-size:18px; background:rgba(255,255,255,0.85); }
-.message { position:fixed; top:20px; width:100%; text-align:center; font-size:28px; color:yellow; text-shadow:0 0 8px black; pointer-events:none; }
+
+#levelSelect { position:fixed; top:10px; width:100%; text-align:center; pointer-events:auto; }
+#levelSelect button { width:50px; height:50px; margin:0 5px; font-size:16px; border-radius:10px; }
+.message { position:fixed; top:60px; width:100%; text-align:center; font-size:28px; color:yellow; text-shadow:0 0 8px black; pointer-events:none; }
 </style>
 </head>
 <body>
+
+<div id="levelSelect">
+  <button onclick="selectLevel(0)">1</button>
+  <button onclick="selectLevel(1)">2</button>
+  <button onclick="selectLevel(2)">3</button>
+  <button onclick="selectLevel(3)">4</button>
+  <button onclick="selectLevel(4)">5</button>
+</div>
 
 <div class="ui">
   <div class="joystick" id="joystick"><div class="stick" id="stick"></div></div>
@@ -102,66 +113,8 @@ function loadLevel(n){
     checkpoints.push(new THREE.Vector3(b.x, b.y+1, b.z));
     if(b.finish) finishLine=p;
   });
+  message.textContent=`Level ${n+1}`;
 }
-loadLevel(level);
 
-// ---------------- GAME LOOP ----------------
-function animate(){
-  requestAnimationFrame(animate);
-
-  // Movement
-  player.position.x += joyX*speed;
-  player.position.z += joyY*speed;
-
-  // Gravity
-  velocityY -= gravity; player.position.y += velocityY;
-
-  // Moving platforms
-  platforms.forEach(p=>{
-    if(p.move){ p.mesh.position.x += 0.03*p.dir; if(Math.abs(p.mesh.position.x-p.startX)>3) p.dir*=-1; }
-  });
-
-  // Collision & checkpoint
-  onGround=false;
-  platforms.forEach((p,i)=>{
-    const dx=Math.abs(player.position.x-p.mesh.position.x);
-    const dz=Math.abs(player.position.z-p.mesh.position.z);
-    const dy=player.position.y-p.mesh.position.y;
-    if(dx<2.5 && dz<2.5 && dy<=1 && dy>0){
-      velocityY=0; player.position.y=p.mesh.position.y+1; onGround=true;
-      checkpointPos.copy(checkpoints[i]);
-    }
-  });
-
-  // Finish line
-  if(finishLine){
-    const dx=Math.abs(player.position.x-finishLine.position.x);
-    const dz=Math.abs(player.position.z-finishLine.position.z);
-    const dy=Math.abs(player.position.y-finishLine.position.y);
-    if(dx<2.5 && dz<2.5 && dy<2){
-      message.textContent=`Level ${level+1} Complete!`;
-      setTimeout(()=>{
-        message.textContent="";
-        level++;
-        if(level>=levels.length) message.textContent="You finished all 5 levels! 🎉";
-        else loadLevel(level);
-      },1000);
-    }
-  }
-
-  // Respawn if fall
-  if(player.position.y<-20){ player.position.copy(checkpointPos); velocityY=0; }
-
-  // Camera follow
-  camera.position.set(player.position.x, player.position.y+6, player.position.z+12);
-  camera.lookAt(player.position);
-
-  renderer.render(scene,camera);
-}
-animate();
-
-// ---------------- RESIZE ----------------
-addEventListener("resize",()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
-</script>
-</body>
-</html>
+// ---------------- LEVEL SELECT ----------------
+function selectLevel(n
