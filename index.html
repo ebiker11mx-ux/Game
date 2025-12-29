@@ -2,138 +2,169 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Glide Tower — Web Obby</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Glide Tower — Mobile Web Obby</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
   <style>
-    html, body { margin:0; height:100%; background:#0b0e18; font-family: system-ui, Arial, sans-serif; }
+    :root {
+      --bg:#0b0e18;
+      --panel: rgba(19,24,48,.60);
+      --border: rgba(255,255,255,.16);
+      --text:#e9f1ff;
+      --accent:#3a66ff;
+      --good:#28c76f;
+      --goal:#ffb636;
+    }
+    html, body { margin:0; height:100%; background:var(--bg); font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    #canvas { display:block; width:100vw; height:100vh; touch-action:none; }
     #hud {
-      position: fixed; top: 12px; left: 12px; right:12px; display:flex; gap:12px; align-items:center; z-index:10;
-      color:#e9f1ff; font-weight:600; text-shadow:0 1px 2px rgba(0,0,0,.35);
+      position: fixed; top: env(safe-area-inset-top,12px); left: 12px; right: 12px;
+      display:flex; gap:8px; align-items:center; z-index:10; color:var(--text);
     }
     .panel {
-      background: rgba(19,24,48,.55); border:1px solid rgba(255,255,255,.12);
-      border-radius:10px; padding:10px 12px;
-      backdrop-filter: blur(6px);
+      background: var(--panel); border:1px solid var(--border); border-radius:12px; padding:8px 10px;
+      font-weight:600; font-size:14px; backdrop-filter: blur(6px);
     }
     #msg {
-      position: fixed; bottom: 12px; left:12px; right:12px; color:#cfe4ff; text-align:center;
-      background: rgba(19,24,48,.6); border:1px solid rgba(255,255,255,.12);
-      border-radius:10px; padding:8px 12px; z-index:10;
+      position: fixed; bottom: calc(env(safe-area-inset-bottom,12px) + 120px); left:12px; right:12px; color:#cfe4ff;
+      text-align:center; background: var(--panel); border:1px solid var(--border);
+      border-radius:12px; padding:8px 12px; z-index:10; font-size:14px;
     }
-    #help {
-      position: fixed; top: 12px; right: 12px; z-index: 10;
+    #controls {
+      position: fixed; bottom: env(safe-area-inset-bottom,12px); left:0; right:0; z-index:20;
+      display:flex; justify-content:space-between; align-items:flex-end; padding:12px;
+      gap:12px; pointer-events:none;
     }
-    #canvas { display:block; width:100vw; height:100vh; }
+    /* Thumbstick */
+    .stick {
+      width: 140px; height: 140px; border-radius: 50%;
+      background: radial-gradient(ellipse at center, rgba(255,255,255,.08), rgba(255,255,255,.03));
+      border:1px solid var(--border); position:relative; pointer-events:auto;
+      touch-action:none; -webkit-user-select:none; user-select:none;
+    }
+    .knob {
+      width: 72px; height: 72px; border-radius: 50%;
+      background: rgba(58,102,255,.35); border:1px solid rgba(58,102,255,.6);
+      position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+      backdrop-filter: blur(6px);
+    }
+    /* Buttons */
     .btn {
-      cursor:pointer; color:#d9eaff; background:#25305a; border:1px solid rgba(255,255,255,.18);
-      border-radius:8px; padding:8px 12px; font-weight:600; transition:.2s ease;
+      pointer-events:auto; touch-action:manipulation;
+      min-width: 120px; height: 60px; border-radius: 16px;
+      background: #25305a; border:1px solid var(--border); color:#d9eaff; font-weight:700; font-size:16px;
+      display:flex; align-items:center; justify-content:center; box-shadow: 0 6px 16px rgba(0,0,0,.35);
+      -webkit-tap-highlight-color: transparent;
     }
-    .btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
+    .btn.small { min-width: 90px; height: 44px; font-size:14px; font-weight:600; border-radius:12px; }
+    #jumpBtn { background: linear-gradient(180deg, #3a66ff, #2a4bd6); }
+    #restart { background: #2b355f; position: fixed; top: env(safe-area-inset-top,12px); right: 12px; z-index: 30; }
+    /* Responsive tweaks */
+    @media (max-width: 420px) {
+      .stick { width:120px; height:120px; }
+      .knob { width:64px; height:64px; }
+      .btn { min-width: 110px; height: 56px; font-size:15px; }
+      .panel { font-size:13px; }
+      #msg { font-size:13px; }
+    }
   </style>
 </head>
 <body>
+  <canvas id="canvas"></canvas>
+
   <div id="hud">
     <div class="panel">Level: <span id="level">1</span></div>
     <div class="panel">Coins: <span id="coins">0</span> / <span id="coinsTotal">0</span></div>
     <div class="panel">Best: <span id="best">—</span></div>
     <div class="panel">Time: <span id="time">0.0s</span></div>
-    <div id="help"><button id="restart" class="btn">Restart level</button></div>
   </div>
-  <div id="msg">W/A/S/D to move • Space to jump • Hold Space midair to glide • Reach the goal platform!</div>
-  <canvas id="canvas"></canvas>
+  <div id="msg">Thumbstick to move • Tap/hold Jump to jump & glide • Reach the goal platform!</div>
+  <button id="restart" class="btn small">Restart</button>
+
+  <div id="controls">
+    <div id="stick" class="stick" aria-label="Move">
+      <div id="knob" class="knob"></div>
+    </div>
+    <div style="display:flex; gap:12px;">
+      <button id="jumpBtn" class="btn" aria-label="Jump">Jump / Glide</button>
+    </div>
+  </div>
 
   <!-- Three.js -->
   <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
-  <script src="https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js"></script>
   <script>
   (() => {
-    // Core setup
     const canvas = document.getElementById('canvas');
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
-    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+    const DPR = Math.min(1.75, window.devicePixelRatio || 1); // cap DPR for mobile performance
+    renderer.setPixelRatio(DPR);
+    renderer.setSize(window.innerWidth, window.innerHeight, false);
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0b0e18);
+    scene.fog = new THREE.Fog(0x0b0e18, 36, 160);
 
-    // Subtle fog for depth
-    scene.fog = new THREE.Fog(0x0b0e18, 40, 180);
-
-    // Camera
-    const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.set(0, 6, 14);
-    camera.lookAt(0, 3, 0);
 
-    // Lighting
-    const hemi = new THREE.HemisphereLight(0xaec9ff, 0x162040, 0.9);
+    // Lights (no shadows on mobile for performance)
+    const hemi = new THREE.HemisphereLight(0xaec9ff, 0x162040, 0.95);
     scene.add(hemi);
-    const dir = new THREE.DirectionalLight(0xffffff, 0.75);
+    const dir = new THREE.DirectionalLight(0xffffff, 0.65);
     dir.position.set(7, 10, 5);
-    dir.castShadow = true;
-    dir.shadow.mapSize.set(1024,1024);
     scene.add(dir);
 
-    // Ground void (visual only)
-    const skyGeo = new THREE.CylinderGeometry(120, 120, 160, 32, 1, true);
+    // Background cylinder (visual)
+    const skyGeo = new THREE.CylinderGeometry(110, 110, 150, 24, 1, true);
     const skyMat = new THREE.MeshBasicMaterial({ color: 0x0b0e18, side: THREE.BackSide });
     const sky = new THREE.Mesh(skyGeo, skyMat);
     sky.position.y = -50;
     scene.add(sky);
 
-    // Materials
-    const matPlatform = new THREE.MeshStandardMaterial({ color: 0x3a66ff, roughness:.6, metalness:.1 });
-    const matStart = new THREE.MeshStandardMaterial({ color: 0x28c76f, roughness:.5, metalness:.15 });
-    const matGoal = new THREE.MeshStandardMaterial({ color: 0xffb636, emissive:0x422, emissiveIntensity:.15 });
-    const matHazard = new THREE.MeshStandardMaterial({ color: 0xff4d4f, roughness:.8, metalness:0 });
-    const matCoin = new THREE.MeshStandardMaterial({ color: 0xffe000, emissive:0x331900, emissiveIntensity:.3, metalness:.7, roughness:.3 });
+    // Materials (simplified to reduce shader cost)
+    const matPlatform = new THREE.MeshStandardMaterial({ color: 0x3a66ff, roughness:.8, metalness:.0 });
+    const matStart    = new THREE.MeshStandardMaterial({ color: 0x28c76f, roughness:.7, metalness:.0 });
+    const matGoal     = new THREE.MeshStandardMaterial({ color: 0xffb636, roughness:.6, metalness:.0, emissive:0x422000, emissiveIntensity:.12 });
+    const matHazard   = new THREE.MeshStandardMaterial({ color: 0xff4d4f, roughness:.9, metalness:0 });
+    const matCoin     = new THREE.MeshStandardMaterial({ color: 0xffe000, roughness:.3, metalness:.6, emissive:0x331900, emissiveIntensity:.25 });
+    const matPlayer   = new THREE.MeshStandardMaterial({ color: 0xd0e3ff, roughness:.6, metalness:.1 });
 
     // Player
-    const playerSize = 0.6;
-    const playerGeo = new THREE.BoxGeometry(playerSize, playerSize, playerSize);
-    const playerMat = new THREE.MeshStandardMaterial({ color: 0xd0e3ff, roughness:.4, metalness:.2 });
-    const player = new THREE.Mesh(playerGeo, playerMat);
-    player.castShadow = true;
+    const playerSize = 0.62;
+    const player = new THREE.Mesh(new THREE.BoxGeometry(playerSize, playerSize, playerSize), matPlayer);
     scene.add(player);
 
-    // Camera follow pivot
+    // Camera follow
     const followPivot = new THREE.Object3D();
     followPivot.position.copy(player.position);
     scene.add(followPivot);
 
-    // Sparkle particles pool
-    const sparkCount = 120;
+    // Simple particles (very light)
+    const sparkCount = 80;
     const sparksGeo = new THREE.BufferGeometry();
     const sparksPos = new Float32Array(sparkCount*3);
     const sparksVel = new Float32Array(sparkCount*3);
-    for (let i=0;i<sparkCount;i++){
-      sparksPos[i*3+0] = 0;
-      sparksPos[i*3+1] = 0;
-      sparksPos[i*3+2] = 0;
-    }
     sparksGeo.setAttribute('position', new THREE.BufferAttribute(sparksPos, 3));
-    const sparksMat = new THREE.PointsMaterial({ color:0x99ccff, size:0.06, transparent:true, opacity:0.0 });
+    const sparksMat = new THREE.PointsMaterial({ color:0x99ccff, size:0.055, transparent:true, opacity:0.0 });
     const sparks = new THREE.Points(sparksGeo, sparksMat);
     scene.add(sparks);
-
-    function burstSparks(x,y,z, c=0x99ccff){
+    let sparkLife = 0;
+    function burstSparks(x,y,z,c=0x99ccff){
       sparks.position.set(x,y,z);
       sparksMat.color.setHex(c);
       sparksMat.opacity = 1.0;
       for (let i=0;i<sparkCount;i++){
-        const angle = Math.random()*Math.PI*2;
-        const up = Math.random()*0.6+0.1;
-        const speed = Math.random()*1.2+0.2;
-        sparksPos[i*3+0] = Math.cos(angle)*Math.random()*0.4;
-        sparksPos[i*3+1] = up;
-        sparksPos[i*3+2] = Math.sin(angle)*Math.random()*0.4;
-        sparksVel[i*3+0] = (Math.random()-0.5)*speed;
-        sparksVel[i*3+1] = (Math.random()*speed);
-        sparksVel[i*3+2] = (Math.random()-0.5)*speed;
+        const a = Math.random()*Math.PI*2;
+        const sp = Math.random()*1.0+0.25;
+        sparksPos[i*3+0] = Math.cos(a)*Math.random()*0.35;
+        sparksPos[i*3+1] = Math.random()*0.8+0.2;
+        sparksPos[i*3+2] = Math.sin(a)*Math.random()*0.35;
+        sparksVel[i*3+0] = (Math.random()-0.5)*sp;
+        sparksVel[i*3+1] = Math.random()*sp;
+        sparksVel[i*3+2] = (Math.random()-0.5)*sp;
       }
       sparksGeo.attributes.position.needsUpdate = true;
-      sparkLife = 0.7;
+      sparkLife = 0.6;
     }
-    let sparkLife = 0;
 
     // HUD
     const elLevel = document.getElementById('level');
@@ -143,49 +174,138 @@
     const elTime = document.getElementById('time');
     const btnRestart = document.getElementById('restart');
 
-    // Input
-    const keys = { w:false, a:false, s:false, d:false, space:false };
-    window.addEventListener('keydown', e=>{
-      if (e.code === 'KeyW' || e.code==='ArrowUp') keys.w = true;
-      if (e.code === 'KeyA' || e.code==='ArrowLeft') keys.a = true;
-      if (e.code === 'KeyS' || e.code==='ArrowDown') keys.s = true;
-      if (e.code === 'KeyD' || e.code==='ArrowRight') keys.d = true;
-      if (e.code === 'Space') { keys.space = true; e.preventDefault(); }
-    });
-    window.addEventListener('keyup', e=>{
-      if (e.code === 'KeyW' || e.code==='ArrowUp') keys.w = false;
-      if (e.code === 'KeyA' || e.code==='ArrowLeft') keys.a = false;
-      if (e.code === 'KeyS' || e.code==='ArrowDown') keys.s = false;
-      if (e.code === 'KeyD' || e.code==='ArrowRight') keys.d = false;
-      if (e.code === 'Space') keys.space = false;
-    });
+    // Touch controls: thumbstick + jump/glide
+    const stickEl = document.getElementById('stick');
+    const knobEl = document.getElementById('knob');
+    const jumpBtn = document.getElementById('jumpBtn');
 
-    // Simple physics
+    let stickActive = false;
+    let stickCenter = { x:0, y:0 };
+    let stickVec = { x:0, y:0 }; // range -1..1
+
+    function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
+
+    function setKnob(dx, dy, radius){
+      const len = Math.hypot(dx, dy);
+      const max = radius * 0.45;
+      const scale = len > max ? max/len : 1;
+      const nx = dx * scale, ny = dy * scale;
+      knobEl.style.transform = `translate(${nx}px, ${ny}px)`;
+      stickVec.x = clamp(nx / max, -1, 1);
+      stickVec.y = clamp(ny / max, -1, 1);
+    }
+
+    function resetKnob(){
+      knobEl.style.transform = 'translate(-50%,-50%)';
+      stickVec.x = 0; stickVec.y = 0;
+    }
+
+    function getLocalPos(el, clientX, clientY){
+      const r = el.getBoundingClientRect();
+      return { x: clientX - (r.left + r.width/2), y: clientY - (r.top + r.height/2), radius: Math.min(r.width, r.height)/2 };
+    }
+
+    stickEl.addEventListener('pointerdown', (e) => {
+      stickActive = true;
+      stickEl.setPointerCapture(e.pointerId);
+      const p = getLocalPos(stickEl, e.clientX, e.clientY);
+      setKnob(p.x, p.y, p.radius);
+    });
+    stickEl.addEventListener('pointermove', (e) => {
+      if (!stickActive) return;
+      const p = getLocalPos(stickEl, e.clientX, e.clientY);
+      setKnob(p.x, p.y, p.radius);
+    });
+    const endStick = () => { stickActive = false; resetKnob(); };
+    stickEl.addEventListener('pointerup', endStick);
+    stickEl.addEventListener('pointercancel', endStick);
+    stickEl.addEventListener('pointerleave', endStick);
+
+    // Jump/glide button
+    let jumpPressed = false;
+    jumpBtn.addEventListener('pointerdown', (e)=>{ jumpPressed = true; });
+    const endJump = ()=>{ jumpPressed = false; };
+    jumpBtn.addEventListener('pointerup', endJump);
+    jumpBtn.addEventListener('pointercancel', endJump);
+    jumpBtn.addEventListener('pointerleave', endJump);
+
+    // Physics
     let vel = new THREE.Vector3(0,0,0);
     const GRAVITY = -14;
-    const MOVE_SPEED_BASE = 8;
+    const MOVE_SPEED_BASE = 7.6; // slightly slower for thumb accuracy
     const JUMP_VEL = 7.8;
-    const GLIDE_GRAVITY = -3.3;     // lowered gravity when gliding
-    const GLIDE_DRAG = 0.92;        // slows horizontal speed while gliding
+    const GLIDE_GRAVITY = -3.6;
+    const GLIDE_DRAG = 0.915;
     const AIR_CONTROL = 0.55;
-    const GROUND_FRICTION = 0.85;
+    const GROUND_FRICTION = 0.86;
     let onGround = false;
     let canJump = false;
     let gliding = false;
 
-    // Course containers
+    // Course
     let currentLevelIndex = 0;
     let courseGroup = new THREE.Group();
     scene.add(courseGroup);
 
-    // Collision primitives
-    const colliders = []; // {mesh, type:'platform'|'hazard'|'goal'|'coin', aabb}
+    const colliders = []; // {mesh, type, aabb}
     const coins = [];
     let coinsCollected = 0;
 
-    // Levels definition
+    const boxGeo = new THREE.BoxGeometry(1,0.32,1);
+
+    function makePlatform({x,y,z,w=3,d=3, mat=matPlatform}) {
+      const m = new THREE.Mesh(boxGeo, mat);
+      m.scale.set(w, 0.32, d);
+      m.position.set(x, y, z);
+      courseGroup.add(m);
+      addCollider(m, 'platform');
+      return m;
+    }
+    function makeStart(pos){ return makePlatform({ ...pos, w:4,d:4, mat:matStart }); }
+    function makeGoal({x,y,z,w=3,d=3}) {
+      const m = new THREE.Mesh(boxGeo, matGoal);
+      m.scale.set(w,0.32,d);
+      m.position.set(x,y,z);
+      courseGroup.add(m);
+      addCollider(m, 'goal');
+      // ring
+      const ringGeo = new THREE.TorusGeometry(Math.max(w,d)/2+0.4, 0.08, 12, 64);
+      const ringMat = new THREE.MeshBasicMaterial({ color:0xffd487 });
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      ring.rotation.x = Math.PI/2;
+      ring.position.set(x, y+0.2, z);
+      courseGroup.add(ring);
+      return m;
+    }
+    function makeHazard({x,y,z,w=2,d=2, mode='oscX', amp=1.2, speed=1.2}) {
+      const m = new THREE.Mesh(boxGeo, matHazard);
+      m.scale.set(w, 0.32, d);
+      m.position.set(x, y, z);
+      m.userData.anim = { mode, amp, speed, t: Math.random()*Math.PI*2 };
+      courseGroup.add(m);
+      addCollider(m, 'hazard');
+      return m;
+    }
+    function makeCoin({x,y,z}) {
+      const geo = new THREE.CylinderGeometry(0.35, 0.35, 0.08, 24);
+      const coin = new THREE.Mesh(geo, matCoin);
+      coin.rotation.z = Math.PI/2;
+      coin.position.set(x,y,z);
+      coin.userData.spin = (Math.random()*0.8+0.6) * (Math.random()<0.5 ? 1:-1);
+      courseGroup.add(coin);
+      addCollider(coin, 'coin');
+      coins.push(coin);
+      return coin;
+    }
+    function addCollider(mesh, type){
+      const aabb = new THREE.Box3().setFromObject(mesh);
+      colliders.push({ mesh, type, aabb });
+    }
+    function rebuildAABBs(){
+      for (const c of colliders) c.aabb.setFromObject(c.mesh);
+    }
+
     const levels = [
-      // Level 1: gentle intro
       (make)=> {
         make.start({x:0,y:2,z:0});
         make.platform({x:0,y:2,z:-2, w:4,d:4});
@@ -197,27 +317,25 @@
         make.coin({x:12,y:5.8,z:-18});
         make.goal({x:16,y:5,z:-22, w:4,d:4});
       },
-      // Level 2: moving hazards + glide gaps
       (make)=> {
         make.start({x:-2,y:3,z:4});
         make.platform({x:-2,y:3,z:2, w:3,d:3});
         make.platform({x:2,y:3.8,z:-3, w:2.6,d:2.6});
         make.hazard({x:6,y:4,z:-8, w:2,d:2, mode:'oscX', amp:1.5, speed:1.2});
         make.platform({x:10,y:4.6,z:-12, w:2.2,d:2.2});
-        make.hazard({x:14,y:5.2,z:-16, w:2.2,d:2.2, mode:'oscY', amp:1.2, speed:1.4});
+        make.hazard({x:14,y:5.2,z:-16, w:2.2,d:2.2, mode:'oscY', amp:1.2, speed:1.35});
         make.platform({x:18,y:5.8,z:-20, w:2,d:2});
         make.coin({x:2,y:5.5,z:-3});
         make.coin({x:10,y:6.2,z:-12});
         make.coin({x:18,y:7.0,z:-20});
         make.goal({x:22,y:6.2,z:-24, w:3.5,d:3.5});
       },
-      // Level 3: narrow tower path + longer glides
       (make)=> {
         make.start({x:0,y:5,z:10});
         make.platform({x:0,y:5,z:7, w:2.8,d:2.4});
         make.platform({x:3,y:6.2,z:2, w:2.4,d:2.2});
         make.platform({x:6,y:7.4,z:-3, w:2.2,d:2.0});
-        make.hazard({x:9,y:7.8,z:-6, w:2,d:2, mode:'spin', amp:1.6, speed:1.3});
+        make.hazard({x:9,y:7.8,z:-6, w:2,d:2, mode:'spin', amp:1.6, speed:1.25});
         make.platform({x:12,y:8.6,z:-9, w:2.0,d:1.8});
         make.platform({x:16,y:9.6,z:-13, w:1.8,d:1.6});
         make.coin({x:6,y:9.0,z:-3});
@@ -227,72 +345,10 @@
       }
     ];
 
-    // Make helpers
-    const boxGeo = new THREE.BoxGeometry(1,0.3,1);
-    function makePlatform({x,y,z,w=3,d=3, mat=matPlatform}) {
-      const m = new THREE.Mesh(boxGeo, mat);
-      m.scale.set(w, 0.3, d);
-      m.position.set(x, y, z);
-      m.receiveShadow = true; m.castShadow = true;
-      courseGroup.add(m);
-      addCollider(m, 'platform');
-      return m;
-    }
-    function makeStart(pos){ return makePlatform({ ...pos, w:4,d:4, mat:matStart }); }
-    function makeGoal({x,y,z,w=3,d=3}) {
-      const m = new THREE.Mesh(boxGeo, matGoal);
-      m.scale.set(w,0.3,d);
-      m.position.set(x,y,z);
-      m.receiveShadow = true; m.castShadow = true;
-      courseGroup.add(m);
-      addCollider(m, 'goal');
-      // glow ring
-      const ringGeo = new THREE.TorusGeometry(Math.max(w,d)/2+0.4, 0.09, 12, 64);
-      const ringMat = new THREE.MeshBasicMaterial({ color:0xffd487 });
-      const ring = new THREE.Mesh(ringGeo, ringMat);
-      ring.rotation.x = Math.PI/2;
-      ring.position.set(x, y+0.2, z);
-      courseGroup.add(ring);
-      return m;
-    }
-    function makeHazard({x,y,z,w=2,d=2, mode='oscX', amp=1.2, speed=1.2}) {
-      const m = new THREE.Mesh(boxGeo, matHazard);
-      m.scale.set(w, 0.3, d);
-      m.position.set(x, y, z);
-      m.receiveShadow = true; m.castShadow = true;
-      m.userData.anim = { mode, amp, speed, t: Math.random()*Math.PI*2 };
-      courseGroup.add(m);
-      addCollider(m, 'hazard');
-      return m;
-    }
-    function makeCoin({x,y,z}) {
-      const geo = new THREE.CylinderGeometry(0.35, 0.35, 0.08, 24);
-      const coin = new THREE.Mesh(geo, matCoin);
-      coin.rotation.z = Math.PI/2;
-      coin.position.set(x,y,z);
-      coin.castShadow = true;
-      coin.userData.spin = (Math.random()*0.8+0.6) * (Math.random()<0.5 ? 1:-1);
-      courseGroup.add(coin);
-      addCollider(coin, 'coin');
-      coins.push(coin);
-      return coin;
-    }
-    function addCollider(mesh, type){
-      const aabb = new THREE.Box3().setFromObject(mesh);
-      colliders.push({ mesh, type, aabb });
-    }
-
-    function rebuildAABBs(){
-      for (const c of colliders){
-        c.aabb.setFromObject(c.mesh);
-      }
-    }
-
-    // Level builder
     function buildLevel(i){
-      // clear previous
-      for (let i = courseGroup.children.length-1; i>=0; i--){
-        const obj = courseGroup.children[i];
+      // clear
+      for (let k = courseGroup.children.length-1; k>=0; k--){
+        const obj = courseGroup.children[k];
         courseGroup.remove(obj);
         if (obj.geometry) obj.geometry.dispose();
         if (obj.material && obj.material.dispose) obj.material.dispose();
@@ -300,18 +356,12 @@
       colliders.length = 0;
       coins.length = 0;
       coinsCollected = 0;
-      // build
-      const make = {
-        platform: makePlatform,
-        hazard: makeHazard,
-        coin: makeCoin,
-        start: makeStart,
-        goal: makeGoal
-      };
+
+      const make = { platform: makePlatform, hazard: makeHazard, coin: makeCoin, start: makeStart, goal: makeGoal };
       levels[i](make);
       rebuildAABBs();
-      // set player to start (first platform found with matStart)
-      const start = colliders.find(c => c.type === 'platform' && c.mesh.material === matStart);
+
+      const start = colliders.find(c => c.type==='platform' && c.mesh.material===matStart);
       if (start){
         player.position.copy(start.mesh.position).add(new THREE.Vector3(0, 1.2, 0));
         vel.set(0,0,0);
@@ -324,43 +374,27 @@
       levelStartTime = performance.now();
     }
 
-    // Animate hazards
     function animateHazards(dt){
       for (const c of colliders){
-        if (c.type !== 'hazard') continue;
-        const m = c.mesh;
-        const anim = m.userData.anim;
+        if (c.type!=='hazard') continue;
+        const m = c.mesh, anim = m.userData.anim;
         if (!anim) continue;
         anim.t += dt*anim.speed;
         const base = m.userData.base || (m.userData.base = m.position.clone());
         if (anim.mode === 'oscX') m.position.x = base.x + Math.sin(anim.t)*anim.amp;
         else if (anim.mode === 'oscY') m.position.y = base.y + Math.sin(anim.t)*anim.amp;
-        else if (anim.mode === 'spin') m.rotation.y += dt*anim.speed*1.5, m.position.x = base.x + Math.sin(anim.t)*anim.amp, m.position.z = base.z + Math.cos(anim.t)*anim.amp;
+        else if (anim.mode === 'spin') { m.rotation.y += dt*anim.speed*1.5; m.position.x = base.x + Math.sin(anim.t)*anim.amp; m.position.z = base.z + Math.cos(anim.t)*anim.amp; }
         c.aabb.setFromObject(m);
       }
     }
-
-    // Coin spin
     function animateCoins(dt){
       for (const coin of coins){
         coin.rotation.y += dt*coin.userData.spin;
-        const lift = Math.sin(performance.now()*0.001 + coin.id)*0.02;
-        coin.position.y += lift;
-        coin.position.y -= lift;
       }
     }
 
-    // Collision check
-    function intersectsBox(meshA, meshB){
-      // Using AABBs
-      const a = new THREE.Box3().setFromObject(meshA);
-      const b = new THREE.Box3().setFromObject(meshB);
-      return a.intersectsBox(b);
-    }
-
-    // Player controller
     let levelStartTime = performance.now();
-    let bestTimes = {}; // per-level best
+    let bestTimes = {};
     function updateHUD(){
       const t = (performance.now() - levelStartTime)/1000;
       elTime.textContent = t.toFixed(1) + 's';
@@ -369,52 +403,40 @@
     }
 
     function movePlayer(dt){
-      // inputs
-      const forward = (keys.w?1:0) + (keys.s?-1:0);
-      const strafe = (keys.d?1:0) + (keys.a?-1:0);
+      // Input from thumbstick: stickVec.x (right positive), stickVec.y (down positive)
+      const forward = -stickVec.y; // up is negative y on screen
+      const strafe  =  stickVec.x;
 
-      // Camera follow pivot smoothly
-      followPivot.position.lerp(player.position, 0.15);
+      // Camera follow
+      followPivot.position.lerp(player.position, 0.18);
       camera.position.lerp(new THREE.Vector3(
         followPivot.position.x - 5,
         followPivot.position.y + 4.2,
         followPivot.position.z + 8
-      ), 0.12);
+      ), 0.14);
       camera.lookAt(followPivot.position.x, followPivot.position.y+0.6, followPivot.position.z);
 
-      // Horizontal move force
+      // Movement
       const speed = MOVE_SPEED_BASE;
       const control = onGround ? 1.0 : AIR_CONTROL;
-      const hx = (strafe)*speed*control;
-      const hz = (forward)*speed*control;
+      vel.x += (strafe)*speed*control*dt;
+      vel.z += (forward)*speed*control*dt;
 
-      vel.x += hx*dt;
-      vel.z += hz*dt;
-
-      // Friction
       if (onGround){
         vel.x *= GROUND_FRICTION;
         vel.z *= GROUND_FRICTION;
       }
 
-      // Jump & Glide
-      if (keys.space && canJump && onGround){
+      // Jump & glide via button
+      if (jumpPressed && canJump && onGround){
         vel.y = JUMP_VEL;
-        onGround = false;
-        canJump = false;
-        gliding = false;
+        onGround = false; canJump = false; gliding = false;
         burstSparks(player.position.x, player.position.y-0.3, player.position.z, 0xb5e2ff);
       }
       if (!onGround){
-        // Start gliding only if player tapped jump already and is falling or rising
-        if (keys.space){
-          gliding = true;
-        } else {
-          gliding = false;
-        }
+        gliding = jumpPressed; // hold to glide
       }
 
-      // Gravity
       if (gliding){
         vel.y += GLIDE_GRAVITY * dt;
         vel.x *= GLIDE_DRAG;
@@ -423,21 +445,15 @@
         vel.y += GRAVITY * dt;
       }
 
-      // Integrate
       player.position.x += vel.x * dt;
       player.position.y += vel.y * dt;
       player.position.z += vel.z * dt;
 
-      // Respawn if falling off
-      if (player.position.y < -10){
-        restartLevel();
-        return;
-      }
+      if (player.position.y < -10){ restartLevel(); return; }
 
-      // Collision against platforms/hazards/goal/coins
+      // Collisions
       rebuildAABBs();
 
-      // Ground check: cast small ray down
       onGround = false;
       const downCheck = new THREE.Box3().setFromCenterAndSize(
         new THREE.Vector3(player.position.x, player.position.y - playerSize/2, player.position.z),
@@ -445,85 +461,36 @@
       );
 
       for (const c of colliders){
+        const aabb = c.aabb;
+
         if (c.type === 'platform' || c.type==='hazard' || c.type==='goal'){
-          const aabb = c.aabb;
-          // Horizontal collision resolve (simple)
           const playerBox = new THREE.Box3().setFromCenterAndSize(player.position.clone(), new THREE.Vector3(playerSize, playerSize, playerSize));
           if (playerBox.intersectsBox(aabb)){
-            // vertical resolve
             const topY = aabb.max.y;
             const bottomY = aabb.min.y;
             if (player.position.y - playerSize/2 <= topY + 0.02 && vel.y <= 0){
-              // landed on top
               player.position.y = topY + playerSize/2 + 0.02;
               vel.y = 0;
               onGround = true;
               canJump = true;
               gliding = false;
             } else if (player.position.y + playerSize/2 >= bottomY - 0.02 && vel.y > 0) {
-              // hit underside
               player.position.y = bottomY - playerSize/2 - 0.02;
               vel.y = Math.min(0, vel.y)*0.25;
             }
           }
 
-          // check hazards
           if (c.type === 'hazard'){
             const playerBox2 = new THREE.Box3().setFromCenterAndSize(player.position.clone(), new THREE.Vector3(playerSize*0.9, playerSize*0.9, playerSize*0.9));
             if (playerBox2.intersectsBox(aabb)){
               burstSparks(player.position.x, player.position.y, player.position.z, 0xff5f5f);
-              restartLevel();
-              return;
+              restartLevel(); return;
             }
           }
-
-          // goal
           if (c.type === 'goal'){
             const playerBox3 = new THREE.Box3().setFromCenterAndSize(player.position.clone(), new THREE.Vector3(playerSize*0.9, playerSize*0.9, playerSize*0.9));
             if (playerBox3.intersectsBox(aabb)){
               const t = (performance.now() - levelStartTime)/1000;
               const key = 'L'+currentLevelIndex;
               if (!bestTimes[key] || t < bestTimes[key]) bestTimes[key] = t;
-              burstSparks(player.position.x, player.position.y, player.position.z, 0xffe28a);
-              nextLevel();
-              return;
-            }
-          }
-        } else if (c.type === 'coin') {
-          const playerBoxC = new THREE.Box3().setFromCenterAndSize(player.position.clone(), new THREE.Vector3(playerSize*0.9, playerSize*0.9, playerSize*0.9));
-          if (playerBoxC.intersectsBox(c.aabb) && c.mesh.visible){
-            c.mesh.visible = false;
-            coinsCollected++;
-            elCoins.textContent = coinsCollected;
-            burstSparks(c.mesh.position.x, c.mesh.position.y, c.mesh.position.z, 0xfff1a6);
-          }
-        }
-      }
-
-      // Ground proximity
-      for (const c of colliders){
-        if (c.type==='platform' || c.type==='goal'){
-          if (downCheck.intersectsBox(c.aabb)){
-            onGround = true;
-            canJump = true;
-            gliding = false;
-            vel.y = Math.max(vel.y, 0);
-            break;
-          }
-        }
-      }
-    }
-
-    function restartLevel(){
-      buildLevel(currentLevelIndex);
-    }
-    function nextLevel(){
-      currentLevelIndex = (currentLevelIndex + 1) % levels.length;
-      buildLevel(currentLevelIndex);
-    }
-
-    btnRestart.addEventListener('click', restartLevel);
-
-    // Resize
-    window.addEventListener('resize', ()=>{
-      renderer.setSize(
+       
