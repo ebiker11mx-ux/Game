@@ -16,25 +16,49 @@
     display: flex;
     justify-content: space-between;
     padding: 0 20px;
-    pointer-events: auto;
+  }
+
+  .dpad {
+    display: grid;
+    grid-template-columns: 70px 70px 70px;
+    grid-template-rows: 70px 70px 70px;
+    gap: 5px;
   }
 
   button {
     width: 70px;
     height: 70px;
-    border-radius: 50%;
+    border-radius: 12px;
     border: none;
     font-size: 22px;
     background: rgba(255,255,255,0.8);
+  }
+
+  .jump {
+    border-radius: 50%;
   }
 </style>
 </head>
 <body>
 
 <div class="controls">
-  <button id="left">◀</button>
-  <button id="jump">⬆</button>
-  <button id="right">▶</button>
+  <!-- Direction Pad -->
+  <div class="dpad">
+    <div></div>
+    <button id="forward">⬆</button>
+    <div></div>
+
+    <button id="left">⬅</button>
+    <div></div>
+    <button id="right">➡</button>
+
+    <div></div>
+    <button id="backward">⬇</button>
+    <div></div>
+  </div>
+
+  <!-- Jump -->
+  <button id="jump" class="jump">⤒</button>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
@@ -57,64 +81,66 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
 // ---------------- LIGHT ----------------
-const light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.set(5, 10, 5);
-scene.add(light);
+scene.add(new THREE.DirectionalLight(0xffffff, 1).position.set(5,10,5));
 scene.add(new THREE.AmbientLight(0xffffff, 0.4));
 
 // ---------------- PLAYER ----------------
 const player = new THREE.Mesh(
-  new THREE.BoxGeometry(1, 1, 1),
+  new THREE.BoxGeometry(1,1,1),
   new THREE.MeshStandardMaterial({ color: 0xff4444 })
 );
 player.position.set(0, 2, 0);
 scene.add(player);
 
-// ---------------- LEVELS ----------------
+// ---------------- PLATFORMS ----------------
 const platforms = [];
 
-function platform(x, y, z, w = 5) {
+function platform(x,y,z,w=5) {
   const p = new THREE.Mesh(
-    new THREE.BoxGeometry(w, 1, 5),
+    new THREE.BoxGeometry(w,1,5),
     new THREE.MeshStandardMaterial({ color: 0x22ff22 })
   );
-  p.position.set(x, y, z);
+  p.position.set(x,y,z);
   scene.add(p);
   platforms.push(p);
 }
 
-// Level 1
-platform(0, 0, 0);
-platform(0, 1, -8);
-platform(2, 2, -16);
-
-// Level 2
-platform(-2, 3, -26);
-platform(0, 4, -36);
-platform(3, 5, -46);
-
-// Level 3 (harder)
-platform(-3, 6, -58, 3);
-platform(0, 7, -68, 3);
-platform(3, 8, -78, 3);
-
-// Finish
-platform(0, 9, -90, 8);
+// Levels
+platform(0,0,0);
+platform(0,1,-8);
+platform(2,2,-16);
+platform(-2,3,-26);
+platform(0,4,-36);
+platform(3,5,-46);
+platform(-3,6,-58,3);
+platform(0,7,-68,3);
+platform(3,8,-78,3);
+platform(0,9,-90,8);
 
 // ---------------- PHYSICS ----------------
 let velocityY = 0;
 let onGround = false;
 const gravity = 0.02;
+const speed = 0.12;
 
 // ---------------- CONTROLS ----------------
-let left = false;
-let right = false;
+let move = {
+  left:false,
+  right:false,
+  forward:false,
+  backward:false
+};
 
-document.getElementById("left").ontouchstart = () => left = true;
-document.getElementById("left").ontouchend = () => left = false;
+function bind(id, dir) {
+  const btn = document.getElementById(id);
+  btn.ontouchstart = () => move[dir] = true;
+  btn.ontouchend = () => move[dir] = false;
+}
 
-document.getElementById("right").ontouchstart = () => right = true;
-document.getElementById("right").ontouchend = () => right = false;
+bind("left","left");
+bind("right","right");
+bind("forward","forward");
+bind("backward","backward");
 
 document.getElementById("jump").ontouchstart = () => {
   if (onGround) {
@@ -127,9 +153,11 @@ document.getElementById("jump").ontouchstart = () => {
 function animate() {
   requestAnimationFrame(animate);
 
-  // Movement
-  if (left) player.position.x -= 0.1;
-  if (right) player.position.x += 0.1;
+  // Horizontal movement
+  if (move.left) player.position.x -= speed;
+  if (move.right) player.position.x += speed;
+  if (move.forward) player.position.z -= speed;
+  if (move.backward) player.position.z += speed;
 
   // Gravity
   velocityY -= gravity;
@@ -149,9 +177,9 @@ function animate() {
     }
   });
 
-  // Respawn if fall
+  // Respawn
   if (player.position.y < -20) {
-    player.position.set(0, 2, 0);
+    player.position.set(0,2,0);
     velocityY = 0;
   }
 
