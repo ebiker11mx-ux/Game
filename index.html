@@ -3,8 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>3D Obby Mobile</title>
-
+<title>3D Mobile Obby with Checkpoints</title>
 <style>
   body { margin: 0; overflow: hidden; background: black; }
   canvas { display: block; }
@@ -29,7 +28,6 @@
     position: relative;
     pointer-events: auto;
   }
-
   .stick {
     width: 50px;
     height: 50px;
@@ -47,7 +45,6 @@
     gap: 15px;
     pointer-events: auto;
   }
-
   button {
     width: 70px;
     height: 70px;
@@ -56,22 +53,29 @@
     font-size: 18px;
     background: rgba(255,255,255,0.85);
   }
+
+  .message {
+    position: fixed;
+    top: 20px;
+    width: 100%;
+    text-align: center;
+    font-size: 28px;
+    color: yellow;
+    text-shadow: 0 0 8px black;
+    pointer-events: none;
+  }
 </style>
 </head>
 <body>
 
 <div class="ui">
-  <!-- Joystick -->
-  <div class="joystick" id="joystick">
-    <div class="stick" id="stick"></div>
-  </div>
-
-  <!-- Buttons -->
+  <div class="joystick" id="joystick"><div class="stick" id="stick"></div></div>
   <div class="buttons">
     <button id="highjump">⬆⬆</button>
     <button id="jump">⤒</button>
   </div>
 </div>
+<div class="message" id="message"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 <script>
@@ -99,41 +103,14 @@ const player = new THREE.Mesh(
 player.position.set(0,2,0);
 scene.add(player);
 
-// ---------------- PLATFORMS ----------------
-const platforms = [];
-const movingPlatforms = [];
-
-function platform(x,y,z,w=5, move=false) {
-  const p = new THREE.Mesh(
-    new THREE.BoxGeometry(w,1,5),
-    new THREE.MeshStandardMaterial({ color: move ? 0xffaa00 : 0x22ff22 })
-  );
-  p.position.set(x,y,z);
-  scene.add(p);
-  platforms.push(p);
-
-  if (move) {
-    movingPlatforms.push({
-      mesh: p,
-      startX: x,
-      dir: 1
-    });
-  }
-}
-
-// Levels
-platform(0,0,0);
-platform(0,1,-8);
-platform(2,2,-16);
-platform(-2,3,-26);
-platform(0,4,-36,5,true); // moving
-platform(3,5,-46);
-platform(-3,6,-58,3,true); // moving
-platform(0,7,-68,3);
-platform(3,8,-78,3,true);
-platform(0,9,-90,8);
-
-// ---------------- PHYSICS ----------------
+// ---------------- GAME VARIABLES ----------------
+let platforms = [];
+let movingPlatforms = [];
+let checkpoints = [];
+let finishLine;
+let level = 0;
+let checkpointPos = new THREE.Vector3(0,2,0);
+const message = document.getElementById("message");
 let velocityY = 0;
 let onGround = false;
 const gravity = 0.02;
@@ -169,76 +146,123 @@ joystick.addEventListener("touchend", () => {
 
 // ---------------- BUTTONS ----------------
 document.getElementById("jump").ontouchstart = () => {
-  if (onGround) {
-    velocityY = 0.35;
-    onGround = false;
-  }
+  if (onGround) { velocityY = 0.35; onGround=false; }
+};
+document.getElementById("highjump").ontouchstart = () => {
+  if (onGround) { velocityY = 0.65; onGround=false; }
 };
 
-// High jump button
-document.getElementById("highjump").ontouchstart = () => {
-  if (onGround) {
-    velocityY = 0.65; // higher jump
-    onGround = false;
-  }
-};
+// ---------------- LEVEL DATA ----------------
+const levels = [
+  // Level 1: Easy
+  [
+    {x:0, y:0, z:0}, {x:0,y:1,z:-8}, {x:2,y:2,z:-16}, {x:-2,y:3,z:-26}, {x:0,y:4,z:-36, move:true}, {x:0,y:5,z:-46, finish:true}
+  ],
+  // Level 2: Medium
+  [
+    {x:0,y:0,z:0}, {x:1,y:1,z:-8}, {x:-1,y:2,z:-16}, {x:2,y:3,z:-26, move:true}, {x:-2,y:4,z:-36}, {x:0,y:5,z:-46, move:true}, {x:0,y:6,z:-56, finish:true}
+  ],
+  // Level 3: Hard
+  [
+    {x:0,y:0,z:0}, {x:1,y:1,z:-8}, {x:-1,y:2,z:-16, move:true}, {x:2,y:3,z:-24}, {x:-2,y:4,z:-34, move:true}, {x:1,y:5,z:-44}, {x:0,y:6,z:-54, finish:true}
+  ]
+];
+
+// ---------------- LEVEL SETUP ----------------
+function loadLevel(n) {
+  // Clear previous
+  platforms.forEach(p => scene.remove(p.mesh));
+  platforms=[]; movingPlatforms=[]; checkpoints=[]; finishLine=null;
+  checkpointPos.set(0,2,0);
+  velocityY=0; player.position.copy(checkpointPos);
+
+  levels[n].forEach(b => {
+    const p = new THREE.Mesh(
+      new THREE.BoxGeometry(b.move?3:5,1,5),
+      new THREE.MeshStandardMaterial({color: b.finish?0xffff00:(b.move?0xffaa00:0x22ff22)})
+    );
+    p.position.set(b.x,b.y,b.z);
+    scene.add(p);
+    platforms.push({mesh:p, move:b.move||false, startX:b.x, dir:1});
+    checkpoints.push(new THREE.Vector3(b.x, b.y+1, b.z));
+    if(b.finish) finishLine = p;
+  });
+}
+loadLevel(level);
 
 // ---------------- GAME LOOP ----------------
 function animate() {
   requestAnimationFrame(animate);
 
   // Movement from joystick
-  player.position.x += joyX * speed;
-  player.position.z += joyY * speed;
+  player.position.x += joyX*speed;
+  player.position.z += joyY*speed;
 
   // Gravity
   velocityY -= gravity;
   player.position.y += velocityY;
 
   // Moving platforms
-  movingPlatforms.forEach(mp => {
-    mp.mesh.position.x += 0.03 * mp.dir;
-    if (Math.abs(mp.mesh.position.x - mp.startX) > 3) mp.dir *= -1;
-  });
-
-  // Collision
-  onGround = false;
-  platforms.forEach(p => {
-    const dx = Math.abs(player.position.x - p.position.x);
-    const dz = Math.abs(player.position.z - p.position.z);
-    const dy = player.position.y - p.position.y;
-
-    if (dx < 2.5 && dz < 2.5 && dy <= 1 && dy > 0) {
-      velocityY = 0;
-      player.position.y = p.position.y + 1;
-      onGround = true;
+  platforms.forEach(p=>{
+    if(p.move){
+      p.mesh.position.x += 0.03*p.dir;
+      if(Math.abs(p.mesh.position.x - p.startX) > 3) p.dir*=-1;
     }
   });
 
-  // Respawn
-  if (player.position.y < -20) {
-    player.position.set(0,2,0);
-    velocityY = 0;
+  // Collision & checkpoint detection
+  onGround=false;
+  platforms.forEach((p,i)=>{
+    const dx = Math.abs(player.position.x - p.mesh.position.x);
+    const dz = Math.abs(player.position.z - p.mesh.position.z);
+    const dy = player.position.y - p.mesh.position.y;
+    if(dx<2.5 && dz<2.5 && dy<=1 && dy>0){
+      velocityY=0;
+      player.position.y = p.mesh.position.y+1;
+      onGround=true;
+      // Update checkpoint
+      checkpointPos.copy(checkpoints[i]);
+    }
+  });
+
+  // Finish line check
+  if(finishLine){
+    const dx = Math.abs(player.position.x - finishLine.position.x);
+    const dz = Math.abs(player.position.z - finishLine.position.z);
+    const dy = Math.abs(player.position.y - finishLine.position.y);
+    if(dx<2.5 && dz<2.5 && dy<2){
+      message.textContent = `Level ${level+1} Complete!`;
+      setTimeout(()=>{
+        message.textContent="";
+        level++;
+        if(level>=levels.length){
+          message.textContent="You finished all levels! 🎉";
+        }else{
+          loadLevel(level);
+        }
+      },1000);
+    }
+  }
+
+  // Respawn if fall
+  if(player.position.y<-20){
+    player.position.copy(checkpointPos);
+    velocityY=0;
   }
 
   // Camera follow
-  camera.position.set(
-    player.position.x,
-    player.position.y + 6,
-    player.position.z + 12
-  );
+  camera.position.set(player.position.x,player.position.y+6,player.position.z+12);
   camera.lookAt(player.position);
 
-  renderer.render(scene, camera);
+  renderer.render(scene,camera);
 }
-
 animate();
 
 // ---------------- RESIZE ----------------
-addEventListener("resize", () => {
-  camera.aspect = innerWidth/innerHeight;
+addEventListener("resize",()=>{
+  camera.aspect=innerWidth/innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
+  renderer.setSize(innerWidth,innerHeight);
 });
 </script>
 </body>
