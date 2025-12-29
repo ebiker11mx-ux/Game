@@ -3,46 +3,51 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>3D Obstacle Course - Arrows</title>
+<title>3D Obstacle Course - Mobile</title>
 <style>
-  html, body { margin:0; height:100%; background:#0d1117; overflow:hidden; font-family:system-ui, Arial; }
-  #game { position:fixed; inset:0; }
+html, body { margin:0; height:100%; background:#0d1117; overflow:hidden; font-family:system-ui, Arial; }
+#game { position:fixed; inset:0; }
 
-  .hud { position:fixed; inset:0; pointer-events:none; }
-  .status { position:absolute; top:8px; left:8px; color:#eaf1ff; font-size:13px; background:rgba(0,0,0,0.35); padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); }
-  .status strong { color:#fff; }
+/* HUD */
+.hud { position:fixed; inset:0; pointer-events:none; }
+.status { position:absolute; top:8px; left:8px; color:#eaf1ff; font-size:13px; background:rgba(0,0,0,0.35); padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); pointer-events:auto; }
+.status strong { color:#fff; }
 
-  .arrows { position:absolute; bottom:12px; left:12px; display:grid; grid-template-columns:72px 72px 72px; grid-template-rows:72px 72px; gap:8px; pointer-events:auto; }
-  .arrow { background:linear-gradient(180deg,#3a8ffd,#1663d9); color:#fff; font-weight:700; font-size:22px; border:none; border-radius:12px; box-shadow:0 8px 24px rgba(22,99,217,0.35); }
-  .arrow:active { transform:translateY(2px); box-shadow:0 4px 16px rgba(22,99,217,0.35); }
-  .arrow.blank { background:transparent; border:none; box-shadow:none; }
+/* Arrow controls */
+.arrows { position:absolute; bottom:12px; left:12px; display:grid; grid-template-columns:64px 64px 64px; grid-template-rows:64px 64px; gap:6px; pointer-events:auto; }
+.arrow { font-size:22px; font-weight:700; border:none; border-radius:14px; background:linear-gradient(180deg,#3a8ffd,#1663d9); color:#fff; box-shadow:0 6px 20px rgba(22,99,217,0.35); }
+.arrow.blank { background:transparent; box-shadow:none; }
+.arrow:active { transform:translateY(2px); box-shadow:0 3px 10px rgba(22,99,217,0.35); }
 
-  .buttons { position:absolute; bottom:12px; right:12px; display:flex; gap:10px; pointer-events:auto; }
-  .btn { min-width:72px; min-height:72px; border-radius:12px; background:linear-gradient(180deg,#3a8ffd,#1663d9); color:#fff; font-weight:700; border:none; font-size:14px; box-shadow:0 8px 24px rgba(22,99,217,0.35); }
-  .btn.secondary { background:linear-gradient(180deg,#ff9b3a,#d95c16); box-shadow:0 8px 24px rgba(217,92,22,0.35); }
-  .btn:active { transform:translateY(2px); box-shadow:0 4px 16px rgba(217,92,22,0.35); }
+/* Jump buttons */
+.buttons { position:absolute; bottom:12px; right:12px; display:flex; gap:12px; pointer-events:auto; }
+.btn { min-width:64px; min-height:64px; border-radius:14px; background:linear-gradient(180deg,#3a8ffd,#1663d9); color:#fff; font-weight:700; border:none; font-size:14px; box-shadow:0 6px 20px rgba(22,99,217,0.35); }
+.btn.secondary { background:linear-gradient(180deg,#ff9b3a,#d95c16); box-shadow:0 6px 20px rgba(217,92,22,0.35); }
+.btn:active { transform:translateY(2px); box-shadow:0 3px 10px rgba(22,99,217,0.35); }
 
-  .banner { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:auto; }
-  .card { background:rgba(13,17,23,0.92); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:16px 18px; color:#fff; min-width:280px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.5); }
-  .card h2 { margin:0 0 8px; font-size:20px; }
-  .card p { margin:6px 0; font-size:14px; color:#cfe1ff; }
-  .card .row { display:flex; gap:12px; justify-content:center; margin-top:10px; }
-  .card button { padding:10px 14px; border-radius:10px; border:none; font-weight:700; }
-  .card .primary { background:#3a8ffd; color:#fff; }
-  .card .ghost { background:transparent; color:#9fb7ff; border:1px solid rgba(255,255,255,0.18); }
+/* Finish banner */
+.banner { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:auto; }
+.card { background:rgba(13,17,23,0.92); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:16px 18px; color:#fff; min-width:280px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.5); }
+.card h2 { margin:0 0 8px; font-size:20px; }
+.card p { margin:6px 0; font-size:14px; color:#cfe1ff; }
+.card .row { display:flex; gap:12px; justify-content:center; margin-top:10px; }
+.card button { padding:10px 14px; border-radius:10px; border:none; font-weight:700; }
+.card .primary { background:#3a8ffd; color:#fff; }
+.card .ghost { background:transparent; color:#9fb7ff; border:1px solid rgba(255,255,255,0.18); }
 
-  @media (max-width:480px) {
-    .arrows { grid-template-columns:64px 64px 64px; grid-template-rows:64px 64px; gap:6px; }
-    .arrow { font-size:20px; }
-    .btn { min-width:64px; min-height:64px; font-size:13px; }
-    .status { font-size:12px; padding:5px 8px; }
-  }
+@media (max-width:480px){
+  .arrows { grid-template-columns:56px 56px 56px; grid-template-rows:56px 56px; gap:4px; }
+  .arrow { font-size:20px; }
+  .btn { min-width:56px; min-height:56px; font-size:13px; }
+  .status { font-size:12px; padding:5px 8px; }
+}
 </style>
 </head>
 <body>
 <canvas id="game"></canvas>
 
 <div class="hud">
+  <!-- Arrow controls -->
   <div class="arrows">
     <button class="arrow blank" disabled></button>
     <button id="upBtn" class="arrow" aria-label="Move up">⬆️</button>
@@ -53,17 +58,20 @@
     <button id="rightBtn" class="arrow" aria-label="Move right">➡️</button>
   </div>
 
+  <!-- Jump buttons -->
   <div class="buttons">
     <button id="jumpBtn" class="btn" aria-label="Jump">Jump</button>
     <button id="doubleJumpBtn" class="btn secondary" aria-label="Double jump">Double</button>
   </div>
 
+  <!-- HUD -->
   <div class="status">
     <div><strong>Checkpoint:</strong> <span id="checkpointIdx">0</span> / <span id="checkpointTotal">0</span></div>
     <div><strong>Coins:</strong> <span id="coinCount">0</span></div>
     <div><strong>Time:</strong> <span id="timer">0.0s</span></div>
   </div>
 
+  <!-- Finish banner -->
   <div id="finishBanner" class="banner" style="display:none;">
     <div class="card">
       <h2>Level complete!</h2>
@@ -81,47 +89,47 @@
 <script>
 (() => {
   const canvas = document.getElementById('game');
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
   renderer.setSize(window.innerWidth, window.innerHeight);
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x0d1117);
   scene.fog = new THREE.Fog(0x0a0f18, 60, 180);
 
-  const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 800);
-  camera.position.set(0, 8, 12);
+  const camera = new THREE.PerspectiveCamera(65, window.innerWidth/window.innerHeight, 0.1, 800);
+  camera.position.set(0,8,12);
 
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x223355, 0.7));
-  const dir = new THREE.DirectionalLight(0xffffff, 0.8);
-  dir.position.set(12, 18, 10);
+  scene.add(new THREE.HemisphereLight(0xffffff,0x223355,0.7));
+  const dir = new THREE.DirectionalLight(0xffffff,0.8);
+  dir.position.set(12,18,10);
   scene.add(dir);
 
   const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(2000, 2000),
-    new THREE.MeshStandardMaterial({ color: 0x0b0f18, roughness: 1 })
+    new THREE.PlaneGeometry(2000,2000),
+    new THREE.MeshStandardMaterial({color:0x0b0f18, roughness:1})
   );
-  ground.rotation.x = -Math.PI / 2;
+  ground.rotation.x = -Math.PI/2;
   scene.add(ground);
 
   const playerRadius = 0.6;
   const player = new THREE.Mesh(
-    new THREE.SphereGeometry(playerRadius, 20, 16),
-    new THREE.MeshStandardMaterial({ color: 0x86b9ff, emissive: 0x001838, roughness: 0.4, metalness: 0.15 })
+    new THREE.SphereGeometry(playerRadius,20,16),
+    new THREE.MeshStandardMaterial({color:0x86b9ff, emissive:0x001838, roughness:0.4, metalness:0.15})
   );
   scene.add(player);
 
   const state = {
-    pos: new THREE.Vector3(0, 2, 0),
-    vel: new THREE.Vector3(0, 0, 0),
-    acc: new THREE.Vector3(0, 0, 0),
-    onGround: false,
-    jumpCount: 0,
-    lastCheckpoint: new THREE.Vector3(0, 2, 0),
-    checkpointIndex: 0,
-    coins: 0,
-    startTime: performance.now(),
-    finished: false
+    pos:new THREE.Vector3(0,2,0),
+    vel:new THREE.Vector3(0,0,0),
+    acc:new THREE.Vector3(0,0,0),
+    onGround:false,
+    jumpCount:0,
+    lastCheckpoint:new THREE.Vector3(0,2,0),
+    checkpointIndex:0,
+    coins:0,
+    startTime:performance.now(),
+    finished:false
   };
 
   const checkpointIdxEl = document.getElementById('checkpointIdx');
@@ -138,20 +146,20 @@
   const platformGroup = new THREE.Group();
   scene.add(platformGroup);
 
-  const makePlatform = (w, h, d, x, y, z, options = {}) => {
+  const makePlatform = (w,h,d,x,y,z,options={})=>{
     const plat = new THREE.Mesh(
-      new THREE.BoxGeometry(w, h, d),
-      new THREE.MeshStandardMaterial({ color: options.color || 0x2a3758, emissive: options.emissive || 0x000000, roughness: 0.7 })
+      new THREE.BoxGeometry(w,h,d),
+      new THREE.MeshStandardMaterial({ color: options.color || 0x2a3758, emissive: options.emissive || 0x000000, roughness:0.7 })
     );
-    plat.position.set(x, y, z);
+    plat.position.set(x,y,z);
     plat.userData = {
-      size: { w, h, d },
-      isMoving: !!options.isMoving,
-      moveAxis: options.moveAxis || 'x',
-      moveAmp: options.moveAmp || 0,
-      moveSpeed: options.moveSpeed || 0,
-      basePos: new THREE.Vector3(x, y, z),
-      index: platforms.length + 1
+      size:{w,h,d},
+      isMoving:!!options.isMoving,
+      moveAxis:options.moveAxis||'x',
+      moveAmp:options.moveAmp||0,
+      moveSpeed:options.moveSpeed||0,
+      basePos:new THREE.Vector3(x,y,z),
+      index:platforms.length+1
     };
     platformGroup.add(plat);
     platforms.push(plat);
@@ -159,145 +167,36 @@
   };
 
   let zOffset = 0;
-  const startCount = 6, midCount = 10, endCount = 8;
-  const totalCount = startCount + midCount + endCount;
+  const startCount=6, midCount=10, endCount=8;
+  const totalCount=startCount+midCount+endCount;
   checkpointTotalEl.textContent = totalCount;
 
-  for (let i = 0; i < startCount; i++) {
-    const w = 6 - i * 0.2;
-    const d = 6 - i * 0.2;
-    const gap = 4 + i * 0.25;
+  // Start section
+  for(let i=0;i<startCount;i++){
+    const w = 6 - i*0.2;
+    const d = 6 - i*0.2;
+    const gap = 4 + i*0.25;
     zOffset -= gap;
-    makePlatform(w, 0.8, d, (Math.random() - 0.5) * 2, 0.6, zOffset);
+    makePlatform(w,0.8,d,(Math.random()-0.5)*2,0.6,zOffset);
   }
-  for (let i = 0; i < midCount; i++) {
-    const w = 4.6 - i * 0.2;
-    const d = 3.6 - i * 0.2;
-    const gap = 5 + i * 0.45;
+
+  // Mid section
+  for(let i=0;i<midCount;i++){
+    const w = 4.6 - i*0.2;
+    const d = 3.6 - i*0.2;
+    const gap = 5 + i*0.45;
     zOffset -= gap;
-    const x = Math.sin(i * 0.65) * 3;
-    makePlatform(w, 0.7, d, x, 1.1, zOffset);
+    const x = Math.sin(i*0.65)*3;
+    makePlatform(w,0.7,d,x,1.1,zOffset);
   }
-  for (let i = 0; i < endCount; i++) {
+
+  // End section
+  for(let i=0;i<endCount;i++){
     const w = 3.2;
     const d = 2.6;
-    const gap = 6 + i * 0.55;
+    const gap = 6 + i*0.55;
     zOffset -= gap;
-    const axis = i % 2 === 0 ? 'x' : 'y';
-    const amp = axis === 'x' ? 2.2 : 0.8;
-    const speed = 0.8 + i * 0.06;
-    makePlatform(w, 0.6, d, 0, 1.5, zOffset, { isMoving: true, moveAxis: axis, moveAmp: amp, moveSpeed: speed, emissive: 0x06122a, color: 0x25406a });
-  }
-
-  state.pos.copy(platforms[0].position).add(new THREE.Vector3(0, 2, 0));
-  state.lastCheckpoint.copy(state.pos);
-  state.checkpointIndex = 1;
-  checkpointIdxEl.textContent = state.checkpointIndex;
-
-  const coins = [];
-  const coinGeo = new THREE.TorusGeometry(0.4, 0.15, 12, 24);
-  const coinMat = new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0x332200, roughness: 0.35 });
-  for (let i = 1; i < totalCount - 1; i++) {
-    const plat = platforms[i];
-    const c = new THREE.Mesh(coinGeo, coinMat);
-    const jitterX = (Math.random() - 0.5) * Math.min(plat.userData.size.w - 1, 2.5);
-    const jitterZ = (Math.random() - 0.5) * Math.min(plat.userData.size.d - 1, 2.5);
-    c.position.set(plat.position.x + jitterX, plat.position.y + 1.4, plat.position.z + jitterZ);
-    c.rotation.x = Math.PI / 2;
-    scene.add(c);
-    coins.push(c);
-  }
-
-  const lastPlat = platforms[platforms.length - 1];
-  const portal = new THREE.Mesh(
-    new THREE.RingGeometry(2, 2.6, 48),
-    new THREE.MeshBasicMaterial({ color: 0x00ffcc, side: THREE.DoubleSide })
-  );
-  portal.position.set(lastPlat.position.x, lastPlat.position.y + 1.6, lastPlat.position.z - 4);
-  portal.rotation.y = Math.PI / 2;
-  scene.add(portal);
-
-  const input = { x: 0, z: 0 };
-  function bindArrow(id, dx, dz) {
-    const btn = document.getElementById(id);
-    const press = (e) => { input.x += dx; input.z += dz; e.preventDefault(); };
-    const release = () => { input.x -= dx; input.z -= dz; };
-    const cancel = () => { input.x = Math.max(-1, Math.min(1, input.x - dx)); input.z = Math.max(-1, Math.min(1, input.z - dz)); };
-    btn.addEventListener('touchstart', press, { passive: false });
-    btn.addEventListener('touchend', release);
-    btn.addEventListener('touchcancel', cancel);
-    btn.addEventListener('mousedown', press);
-    btn.addEventListener('mouseup', release);
-    btn.addEventListener('mouseleave', release);
-  }
-  bindArrow('upBtn', 0, -1);
-  bindArrow('downBtn', 0, 1);
-  bindArrow('leftBtn', -1, 0);
-  bindArrow('rightBtn', 1, 0);
-
-  const jumpBtn = document.getElementById('jumpBtn');
-  const doubleJumpBtn = document.getElementById('doubleJumpBtn');
-  let jumpLocked = false;
-
-  const tryJump = (force = 9.2) => {
-    if (state.onGround && !state.finished) {
-      state.vel.y = force;
-      state.onGround = false;
-      state.jumpCount = 1;
-    }
-  };
-  const tryDoubleJump = (force = 9.0) => {
-    if (!state.onGround && state.jumpCount === 1 && !state.finished) {
-      state.vel.y = force;
-      state.jumpCount = 2;
-    }
-  };
-  jumpBtn.addEventListener('touchstart', e => { if (!jumpLocked) { tryJump(); jumpLocked = true; e.preventDefault(); } }, { passive: false });
-  jumpBtn.addEventListener('touchend', e => { jumpLocked = false; e.preventDefault(); });
-  jumpBtn.addEventListener('click', () => tryJump());
-
-  doubleJumpBtn.addEventListener('touchstart', e => { tryDoubleJump(); e.preventDefault(); }, { passive: false });
-  doubleJumpBtn.addEventListener('click', () => tryDoubleJump());
-
-  const keys = {};
-  window.addEventListener('keydown', e => { keys[e.code] = true; });
-  window.addEventListener('keyup', e => { keys[e.code] = false; });
-  function applyDesktopInput() {
-    const kx = (keys['KeyA'] ? -1 : 0) + (keys['KeyD'] ? 1 : 0);
-    const kz = (keys['KeyW'] ? -1 : 0) + (keys['KeyS'] ? 1 : 0);
-    input.x = kx;
-    input.z = kz;
-    if (keys['Space']) { tryJump(); keys['Space'] = false; }
-    if (keys['ShiftLeft'] || keys['ShiftRight']) { tryDoubleJump(); keys['ShiftLeft'] = keys['ShiftRight'] = false; }
-  }
-
-  const GRAVITY = -20;
-  const MOVE_ACCEL = 26;
-  const AIR_ACCEL = 12;
-  const MAX_SPEED = 8.5;
-  const FRICTION = 14;
-
-  function groundHeightAt(pos) {
-    let hitHeight = -Infinity;
-    let hitPlat = null;
-    for (let plat of platforms) {
-      const { w, h, d } = plat.userData.size;
-      const p = plat.position;
-      if (pos.x >= p.x - w/2 - playerRadius &&
-          pos.x <= p.x + w/2 + playerRadius &&
-          pos.z >= p.z - d/2 - playerRadius &&
-          pos.z <= p.z + d/2 + playerRadius) {
-        const top = p.y + h / 2;
-        if (top > hitHeight) { hitHeight = top; hitPlat = plat; }
-      }
-    }
-    return { height: hitHeight, plat: hitPlat };
-  }
-
-  function updateMovingPlatforms(t) {
-    for (let plat of platforms) {
-      const ud = plat.userData;
-      if (!ud.isMoving) continue;
-      const phase = Math.sin(t * ud.moveSpeed);
-      if (ud.moveAxis === 'x') plat.position.x = ud.basePos.x + phase * ud.moveAmp;
-      else if (ud.moveAxis === 'y') plat
+    const axis = i%2===0?'x':'y';
+    const amp = axis==='x'?2.2:0.8;
+    const speed = 0.8 + i*0.06;
+    makePlatform(w,0.6,d,0,1.5,zOffset,{isMoving:true, moveAxis:axis, moveAmp:amp, moveSpeed:speed, color:0x25406a, emissive:0x06122
