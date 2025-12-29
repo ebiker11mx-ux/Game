@@ -12,19 +12,16 @@
   .status { position:absolute; top:8px; left:8px; color:#eaf1ff; font-size:13px; background:rgba(0,0,0,0.35); padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); }
   .status strong { color:#fff; }
 
-  /* Arrow controls */
   .arrows { position:absolute; bottom:12px; left:12px; display:grid; grid-template-columns:72px 72px 72px; grid-template-rows:72px 72px; gap:8px; pointer-events:auto; }
   .arrow { background:linear-gradient(180deg,#3a8ffd,#1663d9); color:#fff; font-weight:700; font-size:22px; border:none; border-radius:12px; box-shadow:0 8px 24px rgba(22,99,217,0.35); }
   .arrow:active { transform:translateY(2px); box-shadow:0 4px 16px rgba(22,99,217,0.35); }
   .arrow.blank { background:transparent; border:none; box-shadow:none; }
 
-  /* Jump buttons */
   .buttons { position:absolute; bottom:12px; right:12px; display:flex; gap:10px; pointer-events:auto; }
   .btn { min-width:72px; min-height:72px; border-radius:12px; background:linear-gradient(180deg,#3a8ffd,#1663d9); color:#fff; font-weight:700; border:none; font-size:14px; box-shadow:0 8px 24px rgba(22,99,217,0.35); }
   .btn.secondary { background:linear-gradient(180deg,#ff9b3a,#d95c16); box-shadow:0 8px 24px rgba(217,92,22,0.35); }
   .btn:active { transform:translateY(2px); box-shadow:0 4px 16px rgba(217,92,22,0.35); }
 
-  /* Finish banner */
   .banner { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:auto; }
   .card { background:rgba(13,17,23,0.92); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:16px 18px; color:#fff; min-width:280px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.5); }
   .card h2 { margin:0 0 8px; font-size:20px; }
@@ -46,7 +43,6 @@
 <canvas id="game"></canvas>
 
 <div class="hud">
-  <!-- Arrow controls -->
   <div class="arrows">
     <button class="arrow blank" disabled></button>
     <button id="upBtn" class="arrow" aria-label="Move up">⬆️</button>
@@ -57,20 +53,17 @@
     <button id="rightBtn" class="arrow" aria-label="Move right">➡️</button>
   </div>
 
-  <!-- Jump buttons -->
   <div class="buttons">
     <button id="jumpBtn" class="btn" aria-label="Jump">Jump</button>
     <button id="doubleJumpBtn" class="btn secondary" aria-label="Double jump">Double</button>
   </div>
 
-  <!-- HUD -->
   <div class="status">
     <div><strong>Checkpoint:</strong> <span id="checkpointIdx">0</span> / <span id="checkpointTotal">0</span></div>
     <div><strong>Coins:</strong> <span id="coinCount">0</span></div>
     <div><strong>Time:</strong> <span id="timer">0.0s</span></div>
   </div>
 
-  <!-- Finish banner -->
   <div id="finishBanner" class="banner" style="display:none;">
     <div class="card">
       <h2>Level complete!</h2>
@@ -87,7 +80,6 @@
 <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
 <script>
 (() => {
-  // Renderer, scene, camera
   const canvas = document.getElementById('game');
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -100,13 +92,11 @@
   const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 800);
   camera.position.set(0, 8, 12);
 
-  // Lights
   scene.add(new THREE.HemisphereLight(0xffffff, 0x223355, 0.7));
   const dir = new THREE.DirectionalLight(0xffffff, 0.8);
   dir.position.set(12, 18, 10);
   scene.add(dir);
 
-  // Ground (visual only)
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(2000, 2000),
     new THREE.MeshStandardMaterial({ color: 0x0b0f18, roughness: 1 })
@@ -114,7 +104,6 @@
   ground.rotation.x = -Math.PI / 2;
   scene.add(ground);
 
-  // Player
   const playerRadius = 0.6;
   const player = new THREE.Mesh(
     new THREE.SphereGeometry(playerRadius, 20, 16),
@@ -122,7 +111,6 @@
   );
   scene.add(player);
 
-  // State
   const state = {
     pos: new THREE.Vector3(0, 2, 0),
     vel: new THREE.Vector3(0, 0, 0),
@@ -136,7 +124,6 @@
     finished: false
   };
 
-  // HUD refs
   const checkpointIdxEl = document.getElementById('checkpointIdx');
   const checkpointTotalEl = document.getElementById('checkpointTotal');
   const coinCountEl = document.getElementById('coinCount');
@@ -147,7 +134,6 @@
   const restartBtn = document.getElementById('restartBtn');
   const resumeBtn = document.getElementById('resumeBtn');
 
-  // Course generation
   const platforms = [];
   const platformGroup = new THREE.Group();
   scene.add(platformGroup);
@@ -177,7 +163,6 @@
   const totalCount = startCount + midCount + endCount;
   checkpointTotalEl.textContent = totalCount;
 
-  // Start section
   for (let i = 0; i < startCount; i++) {
     const w = 6 - i * 0.2;
     const d = 6 - i * 0.2;
@@ -185,8 +170,6 @@
     zOffset -= gap;
     makePlatform(w, 0.8, d, (Math.random() - 0.5) * 2, 0.6, zOffset);
   }
-
-  // Mid section (lateral)
   for (let i = 0; i < midCount; i++) {
     const w = 4.6 - i * 0.2;
     const d = 3.6 - i * 0.2;
@@ -195,8 +178,6 @@
     const x = Math.sin(i * 0.65) * 3;
     makePlatform(w, 0.7, d, x, 1.1, zOffset);
   }
-
-  // End section (moving)
   for (let i = 0; i < endCount; i++) {
     const w = 3.2;
     const d = 2.6;
@@ -208,13 +189,11 @@
     makePlatform(w, 0.6, d, 0, 1.5, zOffset, { isMoving: true, moveAxis: axis, moveAmp: amp, moveSpeed: speed, emissive: 0x06122a, color: 0x25406a });
   }
 
-  // Spawn on first platform
   state.pos.copy(platforms[0].position).add(new THREE.Vector3(0, 2, 0));
   state.lastCheckpoint.copy(state.pos);
   state.checkpointIndex = 1;
   checkpointIdxEl.textContent = state.checkpointIndex;
 
-  // Coins
   const coins = [];
   const coinGeo = new THREE.TorusGeometry(0.4, 0.15, 12, 24);
   const coinMat = new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0x332200, roughness: 0.35 });
@@ -229,7 +208,6 @@
     coins.push(c);
   }
 
-  // Finish portal
   const lastPlat = platforms[platforms.length - 1];
   const portal = new THREE.Mesh(
     new THREE.RingGeometry(2, 2.6, 48),
@@ -239,18 +217,15 @@
   portal.rotation.y = Math.PI / 2;
   scene.add(portal);
 
-  // Input (arrow buttons)
   const input = { x: 0, z: 0 };
   function bindArrow(id, dx, dz) {
     const btn = document.getElementById(id);
     const press = (e) => { input.x += dx; input.z += dz; e.preventDefault(); };
     const release = () => { input.x -= dx; input.z -= dz; };
     const cancel = () => { input.x = Math.max(-1, Math.min(1, input.x - dx)); input.z = Math.max(-1, Math.min(1, input.z - dz)); };
-
     btn.addEventListener('touchstart', press, { passive: false });
     btn.addEventListener('touchend', release);
     btn.addEventListener('touchcancel', cancel);
-
     btn.addEventListener('mousedown', press);
     btn.addEventListener('mouseup', release);
     btn.addEventListener('mouseleave', release);
@@ -260,9 +235,10 @@
   bindArrow('leftBtn', -1, 0);
   bindArrow('rightBtn', 1, 0);
 
-  // Jump buttons
   const jumpBtn = document.getElementById('jumpBtn');
   const doubleJumpBtn = document.getElementById('doubleJumpBtn');
+  let jumpLocked = false;
+
   const tryJump = (force = 9.2) => {
     if (state.onGround && !state.finished) {
       state.vel.y = force;
@@ -276,12 +252,13 @@
       state.jumpCount = 2;
     }
   };
-  jumpBtn.addEventListener('touchstart', (e) => { tryJump(); e.preventDefault(); }, { passive: false });
+  jumpBtn.addEventListener('touchstart', e => { if (!jumpLocked) { tryJump(); jumpLocked = true; e.preventDefault(); } }, { passive: false });
+  jumpBtn.addEventListener('touchend', e => { jumpLocked = false; e.preventDefault(); });
   jumpBtn.addEventListener('click', () => tryJump());
-  doubleJumpBtn.addEventListener('touchstart', (e) => { tryDoubleJump(); e.preventDefault(); }, { passive: false });
+
+  doubleJumpBtn.addEventListener('touchstart', e => { tryDoubleJump(); e.preventDefault(); }, { passive: false });
   doubleJumpBtn.addEventListener('click', () => tryDoubleJump());
 
-  // Desktop fallback
   const keys = {};
   window.addEventListener('keydown', e => { keys[e.code] = true; });
   window.addEventListener('keyup', e => { keys[e.code] = false; });
@@ -294,14 +271,12 @@
     if (keys['ShiftLeft'] || keys['ShiftRight']) { tryDoubleJump(); keys['ShiftLeft'] = keys['ShiftRight'] = false; }
   }
 
-  // Physics tuning
   const GRAVITY = -20;
   const MOVE_ACCEL = 26;
   const AIR_ACCEL = 12;
   const MAX_SPEED = 8.5;
   const FRICTION = 14;
 
-  // Helpers
   function groundHeightAt(pos) {
     let hitHeight = -Infinity;
     let hitPlat = null;
@@ -325,152 +300,4 @@
       if (!ud.isMoving) continue;
       const phase = Math.sin(t * ud.moveSpeed);
       if (ud.moveAxis === 'x') plat.position.x = ud.basePos.x + phase * ud.moveAmp;
-      else if (ud.moveAxis === 'y') plat.position.y = ud.basePos.y + phase * ud.moveAmp;
-    }
-  }
-
-  function updateHUD(now) {
-    if (!state.finished) {
-      const elapsed = (now - state.startTime) / 1000;
-      timerEl.textContent = `${elapsed.toFixed(1)}s`;
-    }
-    coinCountEl.textContent = state.coins;
-    checkpointIdxEl.textContent = state.checkpointIndex;
-  }
-
-  function showFinish(now) {
-    const elapsed = (now - state.startTime) / 1000;
-    finishBanner.style.display = 'flex';
-    resultTimeEl.textContent = `Time: ${elapsed.toFixed(2)}s`;
-    resultCoinsEl.textContent = `Coins: ${state.coins}`;
-  }
-
-  restartBtn.addEventListener('click', () => {
-    state.finished = false;
-    state.pos.copy(platforms[0].position).add(new THREE.Vector3(0, 2, 0));
-    state.vel.set(0, 0, 0);
-    state.onGround = false;
-    state.jumpCount = 0;
-    state.lastCheckpoint.copy(state.pos);
-    state.checkpointIndex = 1;
-    state.coins = 0;
-    state.startTime = performance.now();
-    for (let c of coins) c.visible = true;
-    finishBanner.style.display = 'none';
-  });
-
-  resumeBtn.addEventListener('click', () => {
-    state.finished = false;
-    finishBanner.style.display = 'none';
-  });
-
-  // Loop
-  let lastTime = performance.now();
-  function loop() {
-    const now = performance.now();
-    const dt = Math.min(0.033, (now - lastTime) / 1000);
-    lastTime = now;
-
-    // Input (desktop)
-    applyDesktopInput();
-
-    // Moving platforms
-    updateMovingPlatforms(now * 0.0016);
-
-    // Acceleration from input
-    const accel = state.onGround ? MOVE_ACCEL : AIR_ACCEL;
-    state.acc.set(input.x * accel, 0, input.z * accel);
-
-    // Friction on ground
-    if (state.onGround) {
-      const speedXZ = Math.hypot(state.vel.x, state.vel.z);
-      if (speedXZ > 0) {
-        const fr = Math.min(FRICTION * dt, 1);
-        state.vel.x *= (1 - fr);
-        state.vel.z *= (1 - fr);
-      }
-    }
-
-    // Accelerate + gravity
-    state.vel.x += state.acc.x * dt;
-    state.vel.z += state.acc.z * dt;
-    const speed = Math.hypot(state.vel.x, state.vel.z);
-    if (speed > MAX_SPEED) {
-      const k = MAX_SPEED / speed;
-      state.vel.x *= k; state.vel.z *= k;
-    }
-    state.vel.y += GRAVITY * dt;
-
-    // Integrate
-    state.pos.x += state.vel.x * dt;
-    state.pos.z += state.vel.z * dt;
-    state.pos.y += state.vel.y * dt;
-
-    // Ground collision
-    const { height: gHeight, plat: currentPlat } = groundHeightAt(state.pos);
-    const feet = state.pos.y - playerRadius;
-    if (gHeight !== -Infinity && feet <= gHeight + 0.02 && state.vel.y <= 0) {
-      state.pos.y = gHeight + playerRadius;
-      state.vel.y = 0;
-      if (!state.onGround) { state.onGround = true; state.jumpCount = 0; }
-      if (currentPlat) {
-        const idx = currentPlat.userData.index;
-        if (idx > state.checkpointIndex) {
-          state.checkpointIndex = idx;
-          state.lastCheckpoint.copy(currentPlat.position).add(new THREE.Vector3(0, 2, 0));
-        }
-      }
-    } else {
-      state.onGround = false;
-    }
-
-    // Fall -> respawn
-    if (state.pos.y < -20) {
-      state.pos.copy(state.lastCheckpoint);
-      state.vel.set(0, 0, 0);
-      state.onGround = false;
-      state.jumpCount = 0;
-    }
-
-    // Coin collection
-    for (let c of coins) {
-      if (c.visible && state.pos.distanceTo(c.position) < 1.2) {
-        c.visible = false;
-        state.coins += 1;
-      }
-    }
-
-    // Finish detection
-    const toPortal = state.pos.distanceTo(portal.position);
-    if (!state.finished && toPortal < 2.8) {
-      state.finished = true;
-      showFinish(now);
-    }
-
-    // Camera
-    const camTarget = new THREE.Vector3(state.pos.x, state.pos.y + 2.6, state.pos.z + 7.2);
-    camera.position.lerp(camTarget, 0.12);
-    camera.lookAt(new THREE.Vector3(state.pos.x, state.pos.y + 1.2, state.pos.z));
-
-    // Apply to mesh
-    player.position.copy(state.pos);
-
-    // HUD
-    updateHUD(now);
-
-    // Render
-    renderer.render(scene, camera);
-    requestAnimationFrame(loop);
-  }
-  loop();
-
-  // Resize
-  window.addEventListener('resize', () => {
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-  });
-})();
-</script>
-</body>
-</html>
+      else if (ud.moveAxis === 'y') plat
