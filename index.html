@@ -68,7 +68,7 @@
 
   <!-- Buttons -->
   <div class="buttons">
-    <button id="boost">⚡</button>
+    <button id="highjump">⬆⬆</button>
     <button id="jump">⤒</button>
   </div>
 </div>
@@ -138,7 +138,6 @@ let velocityY = 0;
 let onGround = false;
 const gravity = 0.02;
 let speed = 0.12;
-let boostActive = false;
 
 // ---------------- JOYSTICK ----------------
 const joystick = document.getElementById("joystick");
@@ -176,13 +175,12 @@ document.getElementById("jump").ontouchstart = () => {
   }
 };
 
-document.getElementById("boost").ontouchstart = () => {
-  boostActive = true;
-  speed = 0.22;
-  setTimeout(() => {
-    boostActive = false;
-    speed = 0.12;
-  }, 1000);
+// High jump button
+document.getElementById("highjump").ontouchstart = () => {
+  if (onGround) {
+    velocityY = 0.65; // higher jump
+    onGround = false;
+  }
 };
 
 // ---------------- GAME LOOP ----------------
