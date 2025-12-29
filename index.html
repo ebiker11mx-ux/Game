@@ -71,7 +71,6 @@ canvas{display:block}
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 <script>
-/* ================= CORE ================= */
 const hud = document.getElementById('hud');
 let scene,camera,renderer,player;
 let platforms=[],hazards=[],spinners=[],checkpoints=[];
@@ -85,7 +84,6 @@ const gravity=0.013;
 const speed=0.12;
 const jumpPower=0.28;
 
-/* ================= INIT ================= */
 init();
 animate();
 
@@ -120,13 +118,11 @@ function init(){
   addEventListener('resize',onResize);
 }
 
-/* ================= LEVEL ================= */
 function buildLevel(){
   [...platforms,...hazards,...spinners,...checkpoints].forEach(o=>scene.remove(o));
   platforms=[];hazards=[];spinners=[];checkpoints=[];
   cpIndex=0;
 
-  // Base platform
   addPlatform(0,0,0,8,1,8,0xffffff);
 
   const cols=[0xff3b3b,0xffa801,0x2ed573,0x1e90ff,0xbe2edd];
@@ -134,18 +130,15 @@ function buildLevel(){
     addPlatform(i*4,1+i*1.1,-i*4,3,.6,3,cols[i%cols.length]);
   }
 
-  // Spinner + hazard
   addSpinner(12,1.6,-12);
   addHazard(18,1.2,-18);
 
-  // Place checkpoints directly on chosen platforms
-  addCheckpointOnPlatform(platforms[2]); // checkpoint on 3rd block
-  addCheckpointOnPlatform(platforms[5]); // checkpoint on 6th block
+  addCheckpointOnPlatform(platforms[2]);
+  addCheckpointOnPlatform(platforms[5]);
 
   updateHUD();
 }
 
-/* ================= OBJECTS ================= */
 function addPlatform(x,y,z,w,h,d,c){
   const m=new THREE.Mesh(
     new THREE.BoxGeometry(w,h,d),
@@ -191,7 +184,6 @@ function addCheckpointOnPlatform(platform){
   checkpoints.push(m);
 }
 
-/* ================= CONTROLS ================= */
 function setupJoystick(){
   const joy=document.getElementById('joystick');
   const stick=document.getElementById('stick');
@@ -239,7 +231,6 @@ function setupCameraSwipe(){
   addEventListener('touchend',()=>lastX=null);
 }
 
-/* ================= LOOP ================= */
 function animate(){
   requestAnimationFrame(animate);
 
@@ -247,7 +238,7 @@ function animate(){
 
   const f=new THREE.Vector3(Math.sin(camYaw),0,Math.cos(camYaw));
   const r=new THREE.Vector3(Math.cos(camYaw),0,-Math.sin(camYaw));
-  player.position.addScaledVector(f, joyY * speed);   // ✅ fixed joystick
+  player.position.addScaledVector(f, joyY * speed);   // ✅ joystick fixed
   player.position.addScaledVector(r, joyX * speed);
 
   velocity.y-=gravity;
@@ -283,4 +274,11 @@ function animate(){
   renderer.render(scene,camera);
 }
 
-/* ================= HELPERS =================
+function hit(o){
+  const {w,h,d}=o.userData;
+  return (
+    player.position.x>o.position.x-w/2 &&
+    player.position.x<o.position.x+w/2 &&
+    player.position.z>o.position.z-d/2 &&
+    player.position.z<o.position.z+d/2 &&
+    player.position
