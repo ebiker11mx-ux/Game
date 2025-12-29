@@ -126,6 +126,7 @@ function buildLevel(){
   platforms=[];hazards=[];spinners=[];checkpoints=[];
   cpIndex=0;
 
+  // Base platform
   addPlatform(0,0,0,8,1,8,0xffffff);
 
   const cols=[0xff3b3b,0xffa801,0x2ed573,0x1e90ff,0xbe2edd];
@@ -133,10 +134,14 @@ function buildLevel(){
     addPlatform(i*4,1+i*1.1,-i*4,3,.6,3,cols[i%cols.length]);
   }
 
+  // Spinner + hazard
   addSpinner(12,1.6,-12);
   addHazard(18,1.2,-18);
-  addCheckpoint(8,2,-8);
-  addCheckpoint(20,2,-20);
+
+  // Place checkpoints directly on chosen platforms
+  addCheckpointOnPlatform(platforms[2]); // checkpoint on 3rd block
+  addCheckpointOnPlatform(platforms[5]); // checkpoint on 6th block
+
   updateHUD();
 }
 
@@ -174,12 +179,13 @@ function addSpinner(x,y,z){
   spinners.push(m);
 }
 
-function addCheckpoint(x,y,z){
+function addCheckpointOnPlatform(platform){
+  const {w,h,d} = platform.userData;
   const m=new THREE.Mesh(
     new THREE.TorusGeometry(.5,.15,12,20),
     new THREE.MeshStandardMaterial({color:0x2ecc71,emissive:0x116633})
   );
-  m.position.set(x,y,z);
+  m.position.set(platform.position.x, platform.position.y + h/2 + 0.5, platform.position.z);
   m.rotation.x=Math.PI/2;
   scene.add(m);
   checkpoints.push(m);
@@ -241,8 +247,8 @@ function animate(){
 
   const f=new THREE.Vector3(Math.sin(camYaw),0,Math.cos(camYaw));
   const r=new THREE.Vector3(Math.cos(camYaw),0,-Math.sin(camYaw));
-  player.position.addScaledVector(f,-joyY*speed);
-  player.position.addScaledVector(r,joyX*speed);
+  player.position.addScaledVector(f, joyY * speed);   // ✅ fixed joystick
+  player.position.addScaledVector(r, joyX * speed);
 
   velocity.y-=gravity;
   player.position.y+=velocity.y;
@@ -277,39 +283,4 @@ function animate(){
   renderer.render(scene,camera);
 }
 
-/* ================= HELPERS ================= */
-function hit(o){
-  const {w,h,d}=o.userData;
-  return (
-    player.position.x>o.position.x-w/2 &&
-    player.position.x<o.position.x+w/2 &&
-    player.position.z>o.position.z-d/2 &&
-    player.position.z<o.position.z+d/2 &&
-    player.position.y-0.6<=o.position.y+h/2 &&
-    player.position.y-0.6>=o.position.y-h/2 &&
-    velocity.y<=0
-  );
-}
-
-function reset(){
-  if(checkpoints[cpIndex]){
-    player.position.copy(checkpoints[cpIndex].position);
-    player.position.y+=1;
-  }else{
-    player.position.set(0,1,0);
-  }
-  velocity.set(0,0,0);
-}
-
-function updateHUD(){
-  hud.textContent=`OBBY · Level 1 · CP ${cpIndex+1}`;
-}
-
-function onResize(){
-  camera.aspect=innerWidth/innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth,innerHeight);
-}
-</script>
-</body>
-  </html>
+/* ================= HELPERS =================
