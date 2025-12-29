@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>3D Mobile Obby Level Select + Next</title>
+<title>3D Endless Obby</title>
 <style>
 body { margin:0; overflow:hidden; background:black; font-family:sans-serif; }
 canvas { display:block; }
@@ -14,29 +14,10 @@ canvas { display:block; }
 .buttons { display:flex; flex-direction:column; gap:15px; pointer-events:auto; }
 button { width:70px; height:70px; border-radius:50%; border:none; font-size:18px; background:rgba(255,255,255,0.85); }
 
-#levelSelect, #nextMenu {
-  position: fixed; top:50%; left:50%; transform:translate(-50%,-50%);
-  display:flex; flex-direction:column; gap:15px; pointer-events:auto;
-}
-#levelSelect button, #nextMenu button { width:160px; height:50px; font-size:18px; }
-
 .message { position:fixed; top:20px; width:100%; text-align:center; font-size:28px; color:yellow; text-shadow:0 0 8px black; pointer-events:none; }
 </style>
 </head>
 <body>
-
-<div id="levelSelect">
-  <button data-level="0">Level 1</button>
-  <button data-level="1">Level 2</button>
-  <button data-level="2">Level 3</button>
-  <button data-level="3">Level 4</button>
-  <button data-level="4">Level 5</button>
-</div>
-
-<div id="nextMenu" style="display:none;">
-  <button id="nextLevelBtn">Next Level</button>
-  <button id="backSelectBtn">Back to Level Select</button>
-</div>
 
 <div class="ui">
   <div class="joystick" id="joystick"><div class="stick" id="stick"></div></div>
@@ -62,13 +43,14 @@ scene.add(new THREE.AmbientLight(0xffffff,0.4));
 
 // ---------------- PLAYER ----------------
 const player = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshStandardMaterial({ color:0xff4444 }));
+player.position.set(0,2,0);
 scene.add(player);
 
 // ---------------- VARIABLES ----------------
-let platforms=[], checkpoints=[], finishLine;
-let level=0, checkpointPos=new THREE.Vector3(0,2,0);
+let platforms=[], checkpointPos=new THREE.Vector3(0,2,0);
 const message=document.getElementById("message");
 let velocityY=0, onGround=false, speed=0.12, gravity=0.02;
+let platformIndex=0, difficulty=0.05;
 
 // ---------------- JOYSTICK ----------------
 const joystick=document.getElementById("joystick");
@@ -93,55 +75,25 @@ joystick.addEventListener("touchend", ()=>{ joyX=joyY=0; stick.style.left="35px"
 document.getElementById("jump").ontouchstart=()=>{ if(onGround){ velocityY=0.35; onGround=false; } };
 document.getElementById("highjump").ontouchstart=()=>{ if(onGround){ velocityY=0.65; onGround=false; } };
 
-// ---------------- LEVEL DATA ----------------
-const levels=[
-  [{x:0,y:0,z:0},{x:0,y:1,z:-8},{x:2,y:2,z:-16},{x:-2,y:3,z:-26},{x:0,y:4,z:-36, move:true},{x:0,y:5,z:-46, finish:true}],
-  [{x:0,y:0,z:0},{x:1,y:1,z:-8},{x:-1,y:2,z:-16},{x:2,y:3,z:-26, move:true},{x:-2,y:4,z:-36},{x:0,y:5,z:-46, move:true},{x:0,y:6,z:-56, finish:true}],
-  [{x:0,y:0,z:0},{x:1,y:1,z:-8},{x:-1,y:2,z:-16, move:true},{x:2,y:3,z:-24},{x:-2,y:4,z:-34, move:true},{x:1,y:5,z:-44},{x:0,y:6,z:-54, finish:true}],
-  [{x:0,y:0,z:0},{x:2,y:1,z:-8},{x:-2,y:2,z:-16},{x:3,y:3,z:-26, move:true},{x:-3,y:4,z:-36, move:true},{x:2,y:5,z:-46},{x:0,y:6,z:-56, finish:true}],
-  [{x:0,y:0,z:0},{x:2,y:1,z:-8, move:true},{x:-2,y:2,z:-16},{x:3,y:3,z:-26, move:true},{x:-3,y:4,z:-36, move:true},{x:2,y:5,z:-46, move:true},{x:0,y:6,z:-56, finish:true}]
-];
-
-// ---------------- LEVEL LOAD ----------------
-function loadLevel(n){
-  platforms.forEach(p=>scene.remove(p.mesh));
-  platforms=[]; checkpoints=[]; finishLine=null;
-  checkpointPos.set(0,2,0); velocityY=0; player.position.copy(checkpointPos);
-
-  levels[n].forEach((b,i)=>{
-    const p=new THREE.Mesh(new THREE.BoxGeometry(b.move?3:5,1,5),
-      new THREE.MeshStandardMaterial({color:b.finish?0xffff00:(b.move?0xffaa00:0x22ff22)}));
-    p.position.set(b.x,b.y,b.z);
-    scene.add(p);
-    platforms.push({mesh:p, move:b.move||false, startX:b.x, dir:1});
-    checkpoints.push(new THREE.Vector3(b.x,b.y+1,b.z));
-    if(b.finish) finishLine=p;
-  });
+// ---------------- PLATFORM GENERATOR ----------------
+function createPlatform(x=0,y=0,z=0,move=false){
+  const p = new THREE.Mesh(
+    new THREE.BoxGeometry(move?3:5,1,5),
+    new THREE.MeshStandardMaterial({color: move?0xffaa00:0x22ff22})
+  );
+  p.position.set(x,y,z);
+  scene.add(p);
+  platforms.push({mesh:p, move:move, startX:x, dir:1});
 }
 
-// ---------------- LEVEL SELECT ----------------
-const levelSelectDiv=document.getElementById('levelSelect');
-const nextMenu=document.getElementById('nextMenu');
-document.querySelectorAll('#levelSelect button').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    level=parseInt(btn.dataset.level);
-    loadLevel(level);
-    levelSelectDiv.style.display='none';
-  });
-});
-
-// ---------------- NEXT MENU ----------------
-document.getElementById('nextLevelBtn').addEventListener('click', ()=>{
-  if(level+1<levels.length){
-    level++;
-    loadLevel(level);
-    nextMenu.style.display='none';
-  }
-});
-document.getElementById('backSelectBtn').addEventListener('click', ()=>{
-  nextMenu.style.display='none';
-  levelSelectDiv.style.display='flex';
-});
+// Initialize first 10 platforms
+for(let i=0;i<10;i++){
+  const x = Math.floor(Math.random()*5-2);
+  const y = i*0.5;
+  const z = -i*8;
+  const move = Math.random() < 0.3;
+  createPlatform(x,y,z,move);
+}
 
 // ---------------- GAME LOOP ----------------
 function animate(){
@@ -156,7 +108,10 @@ function animate(){
 
   // Moving platforms
   platforms.forEach(p=>{
-    if(p.move){ p.mesh.position.x += 0.03*p.dir; if(Math.abs(p.mesh.position.x-p.startX)>3) p.dir*=-1; }
+    if(p.move){ 
+      p.mesh.position.x += difficulty*p.dir; 
+      if(Math.abs(p.mesh.position.x-p.startX)>3) p.dir*=-1; 
+    }
   });
 
   // Collision & checkpoint
@@ -167,27 +122,31 @@ function animate(){
     const dy=player.position.y-p.mesh.position.y;
     if(dx<2.5 && dz<2.5 && dy<=1 && dy>0){
       velocityY=0; player.position.y=p.mesh.position.y+1; onGround=true;
-      checkpointPos.copy(checkpoints[i]);
+      checkpointPos.copy(new THREE.Vector3(p.mesh.position.x,p.mesh.position.y+1,p.mesh.position.z));
     }
   });
 
-  // Finish line
-  if(finishLine){
-    const dx=Math.abs(player.position.x-finishLine.position.x);
-    const dz=Math.abs(player.position.z-finishLine.position.z);
-    const dy=Math.abs(player.position.y-finishLine.position.y);
-    if(dx<2.5 && dz<2.5 && dy<2){
-      message.textContent=`Level ${level+1} Complete!`;
-      setTimeout(()=>{
-        message.textContent="";
-        if(level+1<levels.length) nextMenu.style.display='flex';
-        else { message.textContent="You finished all 5 levels! 🎉"; levelSelectDiv.style.display='flex'; }
-      },1000);
-    }
-  }
-
   // Respawn if fall
   if(player.position.y<-20){ player.position.copy(checkpointPos); velocityY=0; }
+
+  // Generate new platforms ahead
+  const lastPlatform = platforms[platforms.length-1].mesh;
+  if(player.position.z - lastPlatform.position.z < 40){
+    const x = Math.floor(Math.random()*5-2);
+    const y = lastPlatform.position.y + Math.random()*0.5;
+    const z = lastPlatform.position.z - 8;
+    const move = Math.random() < 0.3;
+    createPlatform(x,y,z,move);
+
+    // Increase difficulty slightly over time
+    difficulty += 0.0005;
+  }
+
+  // Remove platforms behind player
+  if(platforms[0].mesh.position.z - player.position.z > 20){
+    scene.remove(platforms[0].mesh);
+    platforms.shift();
+  }
 
   // Camera follow
   camera.position.set(player.position.x, player.position.y+6, player.position.z+12);
