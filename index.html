@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>3D Endless Obby</title>
+<title>3D Progressive Obby</title>
 <style>
 body { margin:0; overflow:hidden; background:black; font-family:sans-serif; }
 canvas { display:block; }
@@ -50,7 +50,7 @@ scene.add(player);
 let platforms=[], checkpointPos=new THREE.Vector3(0,2,0);
 const message=document.getElementById("message");
 let velocityY=0, onGround=false, speed=0.12, gravity=0.02;
-let platformIndex=0, difficulty=0.05;
+let difficulty=0.05;  // increases over distance
 
 // ---------------- JOYSTICK ----------------
 const joystick=document.getElementById("joystick");
@@ -116,7 +116,7 @@ function animate(){
 
   // Collision & checkpoint
   onGround=false;
-  platforms.forEach((p,i)=>{
+  platforms.forEach((p)=>{
     const dx=Math.abs(player.position.x-p.mesh.position.x);
     const dz=Math.abs(player.position.z-p.mesh.position.z);
     const dy=player.position.y-p.mesh.position.y;
@@ -135,10 +135,10 @@ function animate(){
     const x = Math.floor(Math.random()*5-2);
     const y = lastPlatform.position.y + Math.random()*0.5;
     const z = lastPlatform.position.z - 8;
-    const move = Math.random() < 0.3;
+    const move = Math.random() < (0.3 + difficulty*2); // more moving platforms as difficulty rises
     createPlatform(x,y,z,move);
 
-    // Increase difficulty slightly over time
+    // Gradually increase difficulty
     difficulty += 0.0005;
   }
 
