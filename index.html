@@ -30,10 +30,12 @@ let velocity = new THREE.Vector3();
 let canJump = false;
 let gravity = 0.008, speed = 0.08, jumpPower = 0.18;
 let level = 1, checkpoint = 0;
+let movingPlatforms = [];
 
 init();
 animate();
 
+// --- Initialization ---
 function init() {
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x202033);
@@ -52,7 +54,7 @@ function init() {
   scene.add(light);
 
   // Ground
-  addPlatform(0, -0.5, 0, 50, 1, 50, 0x2c3e50);
+  addPlatform(0, -0.5, 0, 50, 1, 50, 0x2c3e50, false);
 
   // Player
   const playerGeo = new THREE.SphereGeometry(0.5,16,16);
@@ -67,14 +69,16 @@ function init() {
   window.addEventListener('resize', onResize);
 }
 
-// --- Utility functions ---
-function addPlatform(x,y,z,w=3,h=0.5,d=3,color=0x3498db){
+// --- Utility ---
+function addPlatform(x,y,z,w=3,h=0.5,d=3,color=0x3498db, isMoving=false, moveRange=2, speed=0.02){
   const geo = new THREE.BoxGeometry(w,h,d);
   const mat = new THREE.MeshStandardMaterial({color});
   const plat = new THREE.Mesh(geo, mat);
-  plat.position.set(x,y+d*0.5,z);
+  plat.position.set(x,y+d/2,z);
+  plat.userData = { isMoving, moveDir:1, moveRange, speed, startX:x };
   scene.add(plat);
   platforms.push(plat);
+  if(isMoving) movingPlatforms.push(plat);
   return plat;
 }
 
@@ -111,22 +115,26 @@ function onResize(){
 
 // --- Level system ---
 function loadLevel(num){
-  platforms = platforms.filter(p => p.userData.isGround); // keep ground
+  // Remove old platforms except ground
+  platforms.forEach(p => { if(!p.userData.isGround) scene.remove(p); });
+  platforms = platforms.filter(p => p.userData.isGround);
+  checkpoints.forEach(cp => scene.remove(cp));
   checkpoints = [];
+  movingPlatforms = [];
   checkpoint = 0;
   updateHUD();
 
   if(num===1){
-    // Level 1: Simple ascending platforms
+    // Level 1: simple
     for(let i=0;i<6;i++){
       addPlatform(i*4 - 8, 0.25+i*1.2, -i*2);
       if(i===2 || i===5) addCheckpoint(i*4 - 8, 0.25+i*1.2, -i*2);
     }
   }
   if(num===2){
-    // Level 2: Slightly harder
+    // Level 2: moving platforms
     for(let i=0;i<8;i++){
-      addPlatform(i*4 - 10, 0.25+Math.sin(i)*1.5, -i*2);
+      addPlatform(i*4 - 10, 0.25+Math.sin(i)*1.5, -i*2, 3,0.5,3, 0x3498db, i%2===0, 2, 0.03);
       if(i===3 || i===7) addCheckpoint(i*4 - 10, 0.25+Math.sin(i)*1.5, -i*2);
     }
   }
@@ -137,9 +145,17 @@ function updateHUD(){
   document.getElementById('hud').textContent = `Level: ${level} | Checkpoint: ${checkpoint+1}`;
 }
 
-// --- Game loop ---
+// --- Animate ---
 function animate(){
   requestAnimationFrame(animate);
+
+  // Move platforms
+  movingPlatforms.forEach(plat => {
+    plat.position.x += plat.userData.speed * plat.userData.moveDir;
+    if(Math.abs(plat.position.x - plat.userData.startX) > plat.userData.moveRange){
+      plat.userData.moveDir *= -1;
+    }
+  });
 
   // Gravity
   velocity.y -= gravity;
@@ -151,20 +167,25 @@ function animate(){
 
   // Collision with platforms
   let onPlatform = false;
-  for(let plat of platforms){
-    if(player.position.y - 0.5 <= plat.position.y + 0.25 &&
-       player.position.y - 0.5 >= plat.position.y &&
-       player.position.x > plat.position.x - 1.5 &&
-       player.position.x < plat.position.x + 1.5 &&
-       player.position.z > plat.position.z - 1.5 &&
-       player.position.z < plat.position.z + 1.5
-    ){
+  platforms.forEach(plat => {
+    const px = player.position.x;
+    const py = player.position.y - 0.5;
+    const pz = player.position.z;
+
+    const left = plat.position.x - plat.scale.x/2;
+    const right = plat.position.x + plat.scale.x/2;
+    const top = plat.position.y + plat.scale.y/2;
+    const bottom = plat.position.y - plat.scale.y/2;
+    const front = plat.position.z - plat.scale.z/2;
+    const back = plat.position.z + plat.scale.z/2;
+
+    if(py >= bottom && py <= top && px >= left && px <= right && pz >= front && pz <= back && velocity.y <= 0){
       onPlatform = true;
-      player.position.y = plat.position.y + 0.5;
+      player.position.y = top + 0.5;
       velocity.y = 0;
       canJump = true;
     }
-  }
+  });
 
   // Ground
   if(player.position.y <= 0.5){
@@ -182,14 +203,13 @@ function animate(){
     }
   });
 
-  // If player falls below -10, reset to last checkpoint
+  // Fall reset
   if(player.position.y < -10){
     if(checkpoints[checkpoint]){
       player.position.copy(checkpoints[checkpoint].position);
       player.position.y += 1;
       velocity.set(0,0,0);
     } else {
-      // Reset to start
       player.position.set(0,0.5,0);
       velocity.set(0,0,0);
     }
