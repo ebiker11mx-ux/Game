@@ -1,283 +1,509 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no"/>
-<title>Ultimate Mobile Obby</title>
+  <meta charset="UTF-8" />
+  <title>Mobile Obby Foundation</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <style>
+    :root {
+      --bg: #0f1226;
+      --ui: #1f2347;
+      --accent: #5ee6ff;
+      --accent2: #ff7a7a;
+      --text: #e9f0ff;
+      --platform: #8ac5ff;
+      --platform-move: #ffd580;
+      --platform-kill: #ff6b6b;
+      --platform-checkpoint: #66e08a;
+      --finish: #c28bff;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0; height: 100%; background: var(--bg); color: var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif;
+      touch-action: none; /* keep gestures for game */
+    }
+    #game-wrap {
+      position: relative; width: 100vw; height: 100vh; overflow: hidden; background: linear-gradient(180deg, #0f1226 0%, #090b18 100%);
+    }
+    canvas { display: block; width: 100%; height: 100%; }
 
-<style>
-html,body{
-  margin:0;
-  padding:0;
-  width:100%;
-  height:100%;
-  overflow:hidden;
-  background:linear-gradient(#6fd3ff,#baf0ff);
-  font-family:system-ui;
-}
-canvas{display:block}
+    /* UI Overlay */
+    #hud {
+      position: absolute; inset: 0; pointer-events: none;
+      display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto 1fr auto;
+      padding: 10px;
+    }
+    #top-bar {
+      grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;
+      gap: 8px; padding: 8px 10px; background: rgba(31,35,71,0.7); border-radius: 10px; backdrop-filter: blur(6px);
+      pointer-events: auto;
+    }
+    #title { font-weight: 700; letter-spacing: 0.5px; }
+    .pill {
+      padding: 6px 10px; border-radius: 999px; background: rgba(94,230,255,0.15); border: 1px solid rgba(94,230,255,0.4); color: var(--accent);
+      font-size: 12px; white-space: nowrap;
+    }
 
-#hud{
-  position:absolute;
-  top:12px;
-  left:50%;
-  transform:translateX(-50%);
-  background:rgba(0,0,0,.35);
-  color:#fff;
-  padding:8px 16px;
-  border-radius:14px;
-  font-size:15px;
-}
+    /* Controls */
+    #controls {
+      grid-column: 1 / -1; grid-row: 3; display: flex; justify-content: space-between; align-items: end; padding: 10px;
+      pointer-events: auto;
+    }
+    .joystick {
+      position: relative; width: 140px; height: 140px; border-radius: 50%;
+      background: rgba(31,35,71,0.65); border: 1px solid rgba(94,230,255,0.25); backdrop-filter: blur(6px);
+      touch-action: none;
+    }
+    .stick {
+      position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+      width: 64px; height: 64px; border-radius: 50%;
+      background: rgba(94,230,255,0.35); border: 2px solid rgba(94,230,255,0.7);
+    }
+    .button {
+      min-width: 120px; height: 120px; border-radius: 18px; background: linear-gradient(180deg, #2b3063, #1f2347);
+      border: 2px solid rgba(194,139,255,0.4); color: var(--text); font-weight: 700;
+      display: grid; place-items: center; box-shadow: 0 8px 16px rgba(0,0,0,0.35);
+      touch-action: none;
+    }
+    .button:active { transform: translateY(2px); }
 
-#joystick{
-  position:absolute;
-  bottom:30px;
-  left:30px;
-  width:130px;
-  height:130px;
-  border-radius:50%;
-  background:rgba(255,255,255,.25);
-  touch-action:none;
-}
-#stick{
-  position:absolute;
-  left:45px;
-  top:45px;
-  width:40px;
-  height:40px;
-  border-radius:50%;
-  background:#fff;
-}
+    /* Center prompts */
+    #center-msg {
+      position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+      padding: 12px 18px; border-radius: 12px; background: rgba(31,35,71,0.75); border: 1px solid rgba(94,230,255,0.3);
+      backdrop-filter: blur(6px); text-align: center; pointer-events: none;
+    }
 
-#jump{
-  position:absolute;
-  bottom:45px;
-  right:40px;
-  width:75px;
-  height:75px;
-  border-radius:50%;
-  border:none;
-  font-size:22px;
-  color:#fff;
-  background:linear-gradient(#ff7a7a,#e84141);
-}
-</style>
+    /* Pause menu */
+    #menu {
+      position: absolute; right: 10px; top: 60px; padding: 10px; border-radius: 10px;
+      background: rgba(31,35,71,0.8); border: 1px solid rgba(94,230,255,0.25); backdrop-filter: blur(6px);
+      display: none; flex-direction: column; gap: 8px; pointer-events: auto; z-index: 5;
+    }
+    #menu button {
+      all: unset; padding: 8px 10px; border-radius: 8px; background: rgba(94,230,255,0.15);
+      border: 1px solid rgba(94,230,255,0.35); color: var(--text); text-align: center; font-weight: 600; cursor: pointer;
+    }
+    #menu button.danger { background: rgba(255,122,122,0.15); border-color: rgba(255,122,122,0.45); }
+  </style>
 </head>
-
 <body>
-<div id="hud">OBBY · Level 1 · CP 1</div>
-<div id="joystick"><div id="stick"></div></div>
-<button id="jump">⬆</button>
+  <div id="game-wrap">
+    <canvas id="canvas"></canvas>
 
-<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
-<script>
-const hud = document.getElementById('hud');
-let scene,camera,renderer,player;
-let platforms=[],hazards=[],spinners=[],checkpoints=[];
-let velocity=new THREE.Vector3();
-let canJump=false;
-let joyX=0,joyY=0;
-let camYaw=0;
-let cpIndex=0;
+    <div id="hud">
+      <div id="top-bar">
+        <div id="title">Obby Foundation</div>
+        <div class="pill" id="level-pill">Level 1</div>
+        <div class="pill" id="timer">00:00</div>
+        <div style="margin-left:auto;">
+          <button id="pause" class="pill" style="cursor:pointer; pointer-events:auto;">Pause</button>
+        </div>
+      </div>
 
-const gravity=0.013;
-const speed=0.12;
-const jumpPower=0.28;
+      <div id="controls">
+        <div id="joystick" class="joystick">
+          <div class="stick"></div>
+        </div>
+        <button id="jump" class="button">Jump</button>
+      </div>
+    </div>
 
-init();
-animate();
+    <div id="center-msg" style="display: none;"></div>
 
-function init(){
-  scene=new THREE.Scene();
-  scene.background=new THREE.Color(0x87ceeb);
+    <div id="menu">
+      <button id="resume">Resume</button>
+      <button id="restart">Restart from Start</button>
+      <button id="checkpoint">Respawn at Checkpoint</button>
+      <button id="quit" class="danger">Quit</button>
+    </div>
+  </div>
 
-  camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,0.1,300);
-
-  renderer=new THREE.WebGLRenderer({antialias:true});
-  renderer.setSize(innerWidth,innerHeight);
-  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
-  document.body.appendChild(renderer.domElement);
-
-  scene.add(new THREE.AmbientLight(0xffffff,0.6));
-  const sun=new THREE.DirectionalLight(0xffffff,1);
-  sun.position.set(15,25,10);
-  scene.add(sun);
-
-  player=new THREE.Mesh(
-    new THREE.CapsuleGeometry(0.35,0.8,8,16),
-    new THREE.MeshStandardMaterial({color:0xff4d4d})
-  );
-  player.position.set(0,1,0);
-  scene.add(player);
-
-  buildLevel();
-  setupJoystick();
-  setupJump();
-  setupCameraSwipe();
-
-  addEventListener('resize',onResize);
-}
-
-function buildLevel(){
-  [...platforms,...hazards,...spinners,...checkpoints].forEach(o=>scene.remove(o));
-  platforms=[];hazards=[];spinners=[];checkpoints=[];
-  cpIndex=0;
-
-  addPlatform(0,0,0,8,1,8,0xffffff);
-
-  const cols=[0xff3b3b,0xffa801,0x2ed573,0x1e90ff,0xbe2edd];
-  for(let i=0;i<6;i++){
-    addPlatform(i*4,1+i*1.1,-i*4,3,.6,3,cols[i%cols.length]);
-  }
-
-  addSpinner(12,1.6,-12);
-  addHazard(18,1.2,-18);
-
-  addCheckpointOnPlatform(platforms[2]);
-  addCheckpointOnPlatform(platforms[5]);
-
-  updateHUD();
-}
-
-function addPlatform(x,y,z,w,h,d,c){
-  const m=new THREE.Mesh(
-    new THREE.BoxGeometry(w,h,d),
-    new THREE.MeshStandardMaterial({color:c})
-  );
-  m.position.set(x,y+h/2,z);
-  m.userData={w,h,d};
-  scene.add(m);
-  platforms.push(m);
-}
-
-function addHazard(x,y,z){
-  const m=new THREE.Mesh(
-    new THREE.BoxGeometry(3,.4,3),
-    new THREE.MeshStandardMaterial({color:0xff0000,emissive:0x550000})
-  );
-  m.position.set(x,y,z);
-  m.userData={w:3,h:.4,d:3};
-  scene.add(m);
-  hazards.push(m);
-}
-
-function addSpinner(x,y,z){
-  const m=new THREE.Mesh(
-    new THREE.BoxGeometry(6,.3,.5),
-    new THREE.MeshStandardMaterial({color:0xffa801})
-  );
-  m.position.set(x,y,z);
-  m.userData={speed:0.05};
-  scene.add(m);
-  spinners.push(m);
-}
-
-function addCheckpointOnPlatform(platform){
-  const {w,h,d} = platform.userData;
-  const m=new THREE.Mesh(
-    new THREE.TorusGeometry(.5,.15,12,20),
-    new THREE.MeshStandardMaterial({color:0x2ecc71,emissive:0x116633})
-  );
-  m.position.set(platform.position.x, platform.position.y + h/2 + 0.5, platform.position.z);
-  m.rotation.x=Math.PI/2;
-  scene.add(m);
-  checkpoints.push(m);
-}
-
-function setupJoystick(){
-  const joy=document.getElementById('joystick');
-  const stick=document.getElementById('stick');
-  let active=false;
-
-  joy.addEventListener('touchstart',()=>active=true);
-  joy.addEventListener('touchend',()=>{
-    active=false;joyX=joyY=0;
-    stick.style.left='45px';stick.style.top='45px';
-  });
-
-  joy.addEventListener('touchmove',e=>{
-    if(!active)return;
-    const r=joy.getBoundingClientRect();
-    const t=e.touches[0];
-    const x=t.clientX-r.left-65;
-    const y=t.clientY-r.top-65;
-    const d=Math.min(45,Math.hypot(x,y));
-    const a=Math.atan2(y,x);
-    joyX=Math.cos(a)*(d/45);
-    joyY=Math.sin(a)*(d/45);
-    stick.style.left=45+joyX*45+'px';
-    stick.style.top=45+joyY*45+'px';
-  });
-}
-
-function setupJump(){
-  document.getElementById('jump').addEventListener('touchstart',()=>{
-    if(canJump){
-      velocity.y=jumpPower;
-      canJump=false;
+  <script>
+    // Utility ------------------------------------------------------------
+    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+    const lerp = (a, b, t) => a + (b - a) * t;
+    function formatTime(ms) {
+      const s = Math.floor(ms / 1000); const m = Math.floor(s / 60); const r = s % 60;
+      return `${String(m).padStart(2,'0')}:${String(r).padStart(2,'0')}`;
     }
-  });
-}
 
-function setupCameraSwipe(){
-  let lastX=null;
-  addEventListener('touchmove',e=>{
-    if(e.touches.length!==1)return;
-    if(lastX!==null){
-      camYaw+=(e.touches[0].clientX-lastX)*0.005;
+    // Core types ---------------------------------------------------------
+    class Vec2 {
+      constructor(x=0, y=0) { this.x = x; this.y = y; }
+      set(x,y) { this.x=x; this.y=y; return this; }
+      copy(v) { this.x=v.x; this.y=v.y; return this; }
+      add(v) { this.x+=v.x; this.y+=v.y; return this; }
+      sub(v) { this.x-=v.x; this.y-=v.y; return this; }
+      scale(s) { this.x*=s; this.y*=s; return this; }
+      clone() { return new Vec2(this.x, this.y); }
     }
-    lastX=e.touches[0].clientX;
-  });
-  addEventListener('touchend',()=>lastX=null);
-}
 
-function animate(){
-  requestAnimationFrame(animate);
-
-  spinners.forEach(s=>s.rotation.y+=s.userData.speed);
-
-  const f=new THREE.Vector3(Math.sin(camYaw),0,Math.cos(camYaw));
-  const r=new THREE.Vector3(Math.cos(camYaw),0,-Math.sin(camYaw));
-  player.position.addScaledVector(f, joyY * speed);
-  player.position.addScaledVector(r, joyX * speed);
-
-  velocity.y-=gravity;
-  player.position.y+=velocity.y;
-  canJump=false;
-
-  platforms.forEach(p=>{
-    if(hit(p)){
-      player.position.y=p.position.y+p.userData.h/2+0.6;
-      velocity.y=0;
-      canJump=true;
+    class AABB {
+      constructor(x=0,y=0,w=10,h=10) { this.x=x; this.y=y; this.w=w; this.h=h; }
+      set(x,y,w,h){ this.x=x; this.y=y; this.w=w; this.h=h; return this; }
+      intersects(other){
+        return !(this.x+this.w <= other.x || other.x+other.w <= this.x ||
+                 this.y+this.h <= other.y || other.y+other.h <= this.y);
+      }
     }
-  });
 
-  hazards.forEach(h=>{ if(hit(h)) reset(); });
+    // Input --------------------------------------------------------------
+    class Input {
+      constructor(joystickEl, jumpEl) {
+        this.dir = new Vec2(0, 0);
+        this.jumpPressed = false;
+        this.jumpHeld = false;
 
-  checkpoints.forEach((c,i)=>{
-    if(player.position.distanceTo(c.position)<1){
-      cpIndex=i;updateHUD();
+        this._origin = null;
+        this._stick = joystickEl.querySelector('.stick');
+
+        // Joystick touch
+        const radius = joystickEl.clientWidth / 2;
+        const center = new Vec2(joystickEl.clientWidth/2, joystickEl.clientHeight/2);
+
+        const toLocal = (e) => {
+          const rect = joystickEl.getBoundingClientRect();
+          const x = (e.touches? e.touches[0].clientX : e.clientX) - rect.left;
+          const y = (e.touches? e.touches[0].clientY : e.clientY) - rect.top;
+          return new Vec2(x,y);
+        };
+        const setStick = (p) => {
+          const dx = p.x - center.x; const dy = p.y - center.y;
+          const mag = Math.hypot(dx, dy);
+          const max = radius - 28; // padding inside circle
+          const scale = mag > 0 ? Math.min(1, mag / max) : 0;
+          this.dir.x = dx / (max) * scale;
+          this.dir.y = dy / (max) * scale;
+          const sx = clamp(dx, -max, max);
+          const sy = clamp(dy, -max, max);
+          this._stick.style.transform = `translate(${sx}px, ${sy}px) translate(-50%, -50%)`;
+        };
+        const resetStick = () => {
+          this.dir.set(0,0);
+          this._stick.style.transform = 'translate(-50%, -50%)';
+        };
+
+        joystickEl.addEventListener('touchstart', (e)=>{ e.preventDefault(); setStick(toLocal(e)); });
+        joystickEl.addEventListener('touchmove',  (e)=>{ e.preventDefault(); setStick(toLocal(e)); });
+        joystickEl.addEventListener('touchend',   (e)=>{ e.preventDefault(); resetStick(); });
+        joystickEl.addEventListener('mousedown', (e)=>{ e.preventDefault(); setStick(toLocal(e)); });
+        window.addEventListener('mousemove', (e)=>{ if (e.buttons & 1) setStick(toLocal(e)); });
+        window.addEventListener('mouseup',   ()=> resetStick());
+
+        // Jump
+        jumpEl.addEventListener('touchstart', (e)=>{ e.preventDefault(); this.jumpPressed = true; this.jumpHeld = true; });
+        jumpEl.addEventListener('touchend',   (e)=>{ e.preventDefault(); this.jumpHeld = false; });
+        jumpEl.addEventListener('mousedown',  (e)=>{ e.preventDefault(); this.jumpPressed = true; this.jumpHeld = true; });
+        jumpEl.addEventListener('mouseup',    (e)=>{ e.preventDefault(); this.jumpHeld = false; });
+
+        // Keyboard fallback
+        window.addEventListener('keydown', (e)=>{
+          if (e.code === 'Space' || e.code === 'ArrowUp') { this.jumpPressed = true; this.jumpHeld = true; }
+        });
+        window.addEventListener('keyup', (e)=>{
+          if (e.code === 'Space' || e.code === 'ArrowUp') { this.jumpHeld = false; }
+        });
+      }
+      consumeJump() { const p = this.jumpPressed; this.jumpPressed = false; return p; }
     }
-  });
 
-  if(player.position.y<-15) reset();
+    // Level pieces -------------------------------------------------------
+    const PLATFORM_STATIC = 'static';
+    const PLATFORM_MOVE = 'move';
+    const PLATFORM_KILL = 'kill';
+    const PLATFORM_CHECKPOINT = 'checkpoint';
+    const PLATFORM_FINISH = 'finish';
 
-  const dist=10;
-  camera.position.set(
-    player.position.x+Math.sin(camYaw)*dist,
-    player.position.y+6,
-    player.position.z+Math.cos(camYaw)*dist
-  );
-  camera.lookAt(player.position);
+    class Platform {
+      constructor({x,y,w,h,type=PLATFORM_STATIC, color=null, move=null}) {
+        this.x=x; this.y=y; this.w=w; this.h=h; this.type=type;
+        this.base = {x,y};
+        this.color = color || ({
+          [PLATFORM_STATIC]: '#8ac5ff',
+          [PLATFORM_MOVE]: '#ffd580',
+          [PLATFORM_KILL]: '#ff6b6b',
+          [PLATFORM_CHECKPOINT]: '#66e08a',
+          [PLATFORM_FINISH]: '#c28bff',
+        })[type];
+        this.move = move; // {axis:'x'|'y', min, max, speed}
+      }
+      update(dt){
+        if (!this.move) return;
+        const s = this.move;
+        const v = s.speed * dt;
+        if (s.axis === 'x') this.x += v; else this.y += v;
+        // bounce between min/max
+        const pos = s.axis === 'x' ? this.x : this.y;
+        if (pos < s.min || pos + (s.axis==='x'?this.w:this.h) > s.max) {
+          s.speed *= -1;
+          // correct overshoot
+          const size = s.axis==='x'?this.w:this.h;
+          if (pos < s.min) { if (s.axis==='x') this.x = s.min; else this.y = s.min; }
+          if (pos + size > s.max) { if (s.axis==='x') this.x = s.max - size; else this.y = s.max - size; }
+        }
+      }
+      draw(ctx, cam){
+        ctx.fillStyle = this.color;
+        ctx.fillRect(this.x - cam.x, this.y - cam.y, this.w, this.h);
+      }
+      aabb(){ return new AABB(this.x, this.y, this.w, this.h); }
+    }
 
-  renderer.render(scene,camera);
-}
+    // Player -------------------------------------------------------------
+    class Player {
+      constructor(spawn) {
+        this.pos = new Vec2(spawn.x, spawn.y);
+        this.vel = new Vec2(0, 0);
+        this.size = new Vec2(40, 40);
+        this.onGround = false;
+        this.dead = false;
+        this.checkpoint = new Vec2(spawn.x, spawn.y);
+        this.maxSpeed = 240; // px/s
+        this.accel = 1000;
+        this.friction = 1000;
+        this.jumpSpeed = 420;
+        this.gravity = 1100;
+        this.coyoteTime = 0.12;
+        this.jumpBuffer = 0.12;
+        this._coyoteT = 0;
+        this._jumpBufT = 0;
+        this._lastGroundY = 0;
+      }
+      rect(){ return new AABB(this.pos.x, this.pos.y, this.size.x, this.size.y); }
 
-function hit(o){
-  const {w,h,d}=o.userData;
-  return (
-    player.position.x > o.position.x - w/2 &&
-    player.position.x < o.position.x + w/2 &&
-    player.position.z > o.position.z - d/2 &&
-    player.position.z <
+      respawn(useCheckpoint=false) {
+        const x = useCheckpoint ? this.checkpoint.x : this._spawn.x;
+        const y = useCheckpoint ? this.checkpoint.y : this._spawn.y;
+        this.pos.set(x,y); this.vel.set(0,0); this.dead = false; this.onGround = false;
+      }
+      setSpawn(spawn){ this._spawn = spawn; this.respawn(false); }
+
+      update(dt, input, level) {
+        // Horizontal input
+        const dirX = clamp(input.dir.x, -1, 1);
+        const target = dirX * this.maxSpeed;
+        const delta = target - this.vel.x;
+        const accel = Math.sign(delta) * this.accel * dt;
+        if (Math.abs(delta) < Math.abs(accel)) {
+          this.vel.x = target;
+        } else {
+          this.vel.x += accel;
+        }
+        // Air control friction when no input
+        if (Math.abs(dirX) < 0.05) {
+          const fric = Math.min(Math.abs(this.vel.x), this.friction * dt);
+          this.vel.x -= Math.sign(this.vel.x) * fric;
+        }
+
+        // Gravity
+        this.vel.y += this.gravity * dt;
+
+        // Jump buffering + coyote time
+        if (input.consumeJump()) this._jumpBufT = this.jumpBuffer;
+        this._coyoteT = this.onGround ? this.coyoteTime : Math.max(0, this._coyoteT - dt);
+        this._jumpBufT = Math.max(0, this._jumpBufT - dt);
+        if (this._jumpBufT > 0 && (this.onGround || this._coyoteT > 0)) {
+          this.vel.y = -this.jumpSpeed;
+          this.onGround = false;
+          this._coyoteT = 0;
+          this._jumpBufT = 0;
+        }
+
+        // Integrate
+        const nextPos = this.pos.clone().add(this.vel.clone().scale(dt));
+
+        // Collision resolution (AABB vs platforms)
+        const playerRect = new AABB(nextPos.x, nextPos.y, this.size.x, this.size.y);
+        let grounded = false;
+        let standOn = null;
+
+        for (const pf of level.platforms) {
+          const pr = playerRect;
+          const rr = pf.aabb();
+
+          // quick kill check: if intersects kill, mark dead
+          if (pf.type === PLATFORM_KILL && pr.intersects(rr)) {
+            this.dead = true; break;
+          }
+
+          // only resolve collision for solid platforms
+          const solid = pf.type !== PLATFORM_KILL && pf.type !== PLATFORM_FINISH;
+          if (!solid) continue;
+
+          if (pr.intersects(rr)) {
+            const dx1 = (rr.x + rr.w) - pr.x;      // overlap from left
+            const dx2 = (pr.x + pr.w) - rr.x;      // overlap from right
+            const dy1 = (rr.y + rr.h) - pr.y;      // overlap from top
+            const dy2 = (pr.y + pr.h) - rr.y;      // overlap from bottom
+            const minX = Math.min(dx1, dx2);
+            const minY = Math.min(dy1, dy2);
+
+            if (minX < minY) {
+              // resolve X
+              if (dx1 < dx2) { nextPos.x = rr.x + rr.w; } else { nextPos.x = rr.x - pr.w; }
+              this.vel.x = 0;
+            } else {
+              // resolve Y
+              if (dy1 < dy2) {
+                // landed on platform
+                nextPos.y = rr.y + rr.h;
+                this.vel.y = 0;
+              } else {
+                // collided from above (ground)
+                nextPos.y = rr.y - pr.h;
+                if (this.vel.y > 0) {
+                  grounded = true; standOn = pf;
+                }
+                this.vel.y = Math.min(this.vel.y, 0);
+              }
+            }
+            // update playerRect after resolution
+            playerRect.x = nextPos.x; playerRect.y = nextPos.y;
+          }
+        }
+
+        // Apply platform attachment if standing on moving
+        if (grounded) {
+          this.onGround = true;
+          // riding moving platform: apply its velocity
+          if (standOn && standOn.move) {
+            const s = standOn.move;
+            const v = s.speed; // pixels/sec
+            if (s.axis === 'x') nextPos.x += v * dt;
+            else nextPos.y += v * dt;
+          }
+          this._lastGroundY = nextPos.y;
+        } else {
+          this.onGround = false;
+        }
+
+        // Finish/win detection
+        for (const pf of level.platforms) {
+          if (pf.type === PLATFORM_FINISH && playerRect.intersects(pf.aabb())) {
+            level.win = true;
+          }
+          if (pf.type === PLATFORM_CHECKPOINT && playerRect.intersects(pf.aabb())) {
+            this.checkpoint.set(pf.x + pf.w/2 - this.size.x/2, pf.y - this.size.y);
+          }
+        }
+
+        // Update position
+        this.pos.copy(nextPos);
+      }
+
+      draw(ctx, cam) {
+        // body
+        ctx.fillStyle = '#5ee6ff';
+        ctx.fillRect(this.pos.x - cam.x, this.pos.y - cam.y, this.size.x, this.size.y);
+        // eyes
+        ctx.fillStyle = '#0f1226';
+        const ex = this.pos.x - cam.x + 8;
+        const ey = this.pos.y - cam.y + 10;
+        ctx.fillRect(ex, ey, 8, 8);
+        ctx.fillRect(ex+16, ey, 8, 8);
+      }
+    }
+
+    // Level --------------------------------------------------------------
+    class Level {
+      constructor(config) {
+        this.platforms = [];
+        this.spawn = {x: config.spawn.x, y: config.spawn.y};
+        this.win = false;
+        this.name = config.name || 'Level';
+        for (const p of config.platforms) {
+          this.platforms.push(new Platform(p));
+        }
+      }
+      update(dt) {
+        for (const p of this.platforms) p.update(dt);
+      }
+      draw(ctx, cam) {
+        // sky gradient overlay
+        // draw platforms
+        for (const p of this.platforms) p.draw(ctx, cam);
+        // start marker
+        ctx.fillStyle = '#ffffff22';
+        ctx.fillRect(this.spawn.x - cam.x, this.spawn.y - cam.y, 60, 10);
+      }
+    }
+
+    // Camera -------------------------------------------------------------
+    class Camera {
+      constructor() { this.x=0; this.y=0; this.smooth=0.18; }
+      follow(target, viewW, viewH) {
+        const tx = target.pos.x + target.size.x/2 - viewW/2;
+        const ty = target.pos.y + target.size.y/2 - viewH/2;
+        this.x = lerp(this.x, tx, this.smooth);
+        this.y = lerp(this.y, ty, this.smooth);
+        this.x = Math.max(0, this.x);
+        this.y = Math.max(0, this.y);
+      }
+    }
+
+    // Game ---------------------------------------------------------------
+    class Game {
+      constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.running = true;
+        this.lastTime = 0;
+        this.accum = 0;
+        this.fixed = 1/120; // fixed step
+        this.cam = new Camera();
+        this.elapsed = 0;
+
+        // UI refs
+        this.hud = {
+          timer: document.getElementById('timer'),
+          levelPill: document.getElementById('level-pill'),
+          pauseBtn: document.getElementById('pause'),
+          menu: document.getElementById('menu'),
+          resume: document.getElementById('resume'),
+          restart: document.getElementById('restart'),
+          checkpoint: document.getElementById('checkpoint'),
+          quit: document.getElementById('quit'),
+          centerMsg: document.getElementById('center-msg')
+        };
+
+        // Controls
+        this.input = new Input(document.getElementById('joystick'), document.getElementById('jump'));
+
+        // Level
+        this.levelIndex = 0;
+        this.levels = [buildLevel1(), buildLevel2()];
+        this.level = this.levels[this.levelIndex];
+        this.player = new Player(this.level.spawn);
+        this.player.setSpawn(this.level.spawn);
+
+        // Events
+        this.hud.pauseBtn.addEventListener('click', ()=> this.togglePause(true));
+        this.hud.resume.addEventListener('click', ()=> this.togglePause(false));
+        this.hud.restart.addEventListener('click', ()=> { this.player.respawn(false); this.hideMsg(); this.togglePause(false); this.level.win=false; this.elapsed=0; });
+        this.hud.checkpoint.addEventListener('click', ()=> { this.player.respawn(true); this.hideMsg(); this.togglePause(false); });
+        this.hud.quit.addEventListener('click', ()=> { this.showMsg('Thanks for playing!'); });
+
+        window.addEventListener('resize', ()=> this.resize());
+        this.resize();
+        requestAnimationFrame((t)=> this.loop(t));
+      }
+
+      resize() {
+        const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+        this.canvas.width = Math.floor(this.canvas.clientWidth * dpr);
+        this.canvas.height = Math.floor(this.canvas.clientHeight * dpr);
+        this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      togglePause(show) {
+        this.running = !show ? true : false;
+        this.hud.menu.style.display = show ? 'flex' : 'none';
+      }
+
+      showMsg(text) {
+        this.hud.centerMsg.textContent = text;
+        this.hud.centerMsg.style.display = 'block';
+      }
+      hideMsg() { this.hud
